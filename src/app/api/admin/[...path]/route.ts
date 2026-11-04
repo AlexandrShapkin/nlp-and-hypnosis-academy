@@ -307,9 +307,10 @@ async function handle(
           ...store.listEntities("page"),
         ];
         if (
-          all.some((e) => JSON.stringify([e.draft, e.published]).includes(id))
+          all.some((e) => JSON.stringify([e.draft, e.published]).includes(id)) ||
+          JSON.stringify(store.getSettings().data).includes(id)
         )
-          throw conflict("Media is referenced by content");
+          throw conflict("Media is in use by site content or settings. Remove the reference before deleting.");
         const r = sqlite
           .prepare("SELECT stored_key FROM media WHERE id=?")
           .get(id) as { stored_key: string } | undefined;
