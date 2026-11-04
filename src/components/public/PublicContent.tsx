@@ -60,7 +60,7 @@ function Card({
   media: MediaAsset[];
   index: number;
 }) {
-  const image = media.find((m) => card.mediaIds.includes(m.id));
+  const image = card.mediaIds.map((id) => media.find((m) => m.id === id)).find(Boolean);
   return (
     <article className={`public-card public-variant-${card.variant}`}>
       {image && <Picture asset={image} />}
