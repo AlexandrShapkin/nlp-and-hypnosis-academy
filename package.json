@@ -14,7 +14,9 @@
     "db:seed": "tsx scripts/db.ts seed",
     "admin:bootstrap": "tsx scripts/db.ts bootstrap",
     "format:check": "prettier --check src scripts tests *.ts *.mjs *.json",
-    "format": "prettier --write src scripts tests *.ts *.mjs *.json"
+    "format": "prettier --write src scripts tests *.ts *.mjs *.json",
+    "test:cms": "node scripts/test-cms-isolated.mjs",
+    "test:worker": "python3 -m unittest discover -s tests -p opencode_wrapper_test.py"
   },
   "dependencies": {
     "better-sqlite3": "13.0.3",

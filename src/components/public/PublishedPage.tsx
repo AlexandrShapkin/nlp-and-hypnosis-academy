@@ -31,7 +31,12 @@ export async function PublishedPage({ slug }: { slug: string }) {
     <SiteShell {...home}>
       <main id="main">
         {!hasHero && (
-          <DetailContent title={page.title} body={page.body} media={[]} />
+          <DetailContent
+            title={page.title}
+            body={page.body}
+            bodyRichText={page.bodyRichText}
+            media={[]}
+          />
         )}
         <PublicContent home={{ ...home, page }} />
       </main>

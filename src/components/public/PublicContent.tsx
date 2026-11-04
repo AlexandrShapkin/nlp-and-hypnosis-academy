@@ -9,6 +9,8 @@ import type {
 import { cardUrl } from "@/shared/urls";
 import { safeUrlSchema } from "@/shared/content";
 import { ContactForm } from "./ContactForm";
+import { RichText } from "./RichText";
+import type { RichTextDocument } from "@/shared/rich-text";
 function text(block: Block, key: string) {
   return typeof block.data[key] === "string" ? String(block.data[key]) : "";
 }
@@ -41,10 +43,22 @@ function Picture({
     </div>
   );
 }
-function SectionGallery({ assets }: { assets: MediaAsset[] }) {
+function SectionGallery({
+  assets,
+  layout,
+}: {
+  assets: MediaAsset[];
+  layout?: string;
+}) {
   if (!assets.length) return null;
   return (
-    <div className="public-gallery-grid" aria-label="Фотогалерея">
+    <div
+      className="public-gallery-grid"
+      data-layout={layout === "mosaic" || layout === "strip" ? layout : "grid"}
+      aria-label="Фотогалерея"
+      role="region"
+      tabIndex={layout === "strip" ? 0 : undefined}
+    >
       {assets.map((asset) => (
         <Picture key={asset.id} asset={asset} />
       ))}
@@ -60,7 +74,9 @@ function Card({
   media: MediaAsset[];
   index: number;
 }) {
-  const image = card.mediaIds.map((id) => media.find((m) => m.id === id)).find(Boolean);
+  const image = card.mediaIds
+    .map((id) => media.find((m) => m.id === id))
+    .find(Boolean);
   return (
     <article className={`public-card public-variant-${card.variant}`}>
       {image && <Picture asset={image} />}
@@ -105,7 +121,9 @@ export function PublicContent({ home }: { home: PublishedHome }) {
             ? assigned
             : home.cards.filter((c) => c.type === type && !c.sectionId);
           const asset = home.media.find((m) => m.id === block.imageId);
-          const galleryIds = Array.isArray(block.data.mediaIds) ? block.data.mediaIds : [];
+          const galleryIds = Array.isArray(block.data.mediaIds)
+            ? block.data.mediaIds
+            : [];
           const galleryAssets = galleryIds
             .map((id) => home.media.find((m) => m.id === id))
             .filter((item): item is MediaAsset => Boolean(item));
@@ -131,7 +149,11 @@ export function PublicContent({ home }: { home: PublishedHome }) {
                       </p>
                     )}
                     {h1 ? <h1>{block.heading}</h1> : <h2>{block.heading}</h2>}
-                    <p className="public-lead">{block.body}</p>
+                    <RichText
+                      className="public-lead"
+                      document={block.bodyRichText}
+                      text={block.body}
+                    />
                     {ctaLabel && ctaUrl && (
                       <a className="public-button" href={ctaUrl}>
                         {ctaLabel}
@@ -143,7 +165,10 @@ export function PublicContent({ home }: { home: PublishedHome }) {
                 </div>
                 {galleryAssets.length > 0 && (
                   <div className="public-container public-gallery-after">
-                    <SectionGallery assets={galleryAssets} />
+                    <SectionGallery
+                      assets={galleryAssets}
+                      layout={text(block, "layout")}
+                    />
                   </div>
                 )}
               </section>
@@ -160,7 +185,13 @@ export function PublicContent({ home }: { home: PublishedHome }) {
                 )}
                 <div className="public-section-heading">
                   <h2>{block.heading}</h2>
-                  {block.body && <p className="public-body">{block.body}</p>}
+                  {(block.body || block.bodyRichText) && (
+                    <RichText
+                      className="public-body"
+                      document={block.bodyRichText}
+                      text={block.body}
+                    />
+                  )}
                 </div>
                 {block.type === "contact_form" ? (
                   <div className="public-contact-grid">
@@ -225,12 +256,18 @@ export function PublicContent({ home }: { home: PublishedHome }) {
                     {cards.map((c) => (
                       <details key={c.id}>
                         <summary>{c.title}</summary>
-                        <p>{c.body || c.summary}</p>
+                        <RichText
+                          document={c.bodyRichText}
+                          text={c.body || c.summary}
+                        />
                       </details>
                     ))}
                   </div>
                 ) : block.type === "media_gallery" ? (
-                  <SectionGallery assets={galleryAssets} />
+                  <SectionGallery
+                    assets={galleryAssets}
+                    layout={text(block, "layout")}
+                  />
                 ) : (
                   <div className="public-card-grid">
                     {cards.map((card, index) => (
@@ -245,7 +282,10 @@ export function PublicContent({ home }: { home: PublishedHome }) {
                 )}
                 {block.type !== "media_gallery" && galleryAssets.length > 0 && (
                   <div className="public-gallery-after">
-                    <SectionGallery assets={galleryAssets} />
+                    <SectionGallery
+                      assets={galleryAssets}
+                      layout={text(block, "layout")}
+                    />
                   </div>
                 )}
                 {!cards.length && text(block, "emptyMessage") && (
@@ -267,11 +307,13 @@ export function DetailContent({
   title,
   summary,
   body,
+  bodyRichText,
   media,
 }: {
   title: string;
   summary?: string;
   body: string;
+  bodyRichText?: RichTextDocument;
   media: MediaAsset[];
 }) {
   return (
@@ -281,14 +323,7 @@ export function DetailContent({
       </Link>
       <h1>{title}</h1>
       {summary && <p className="public-lead">{summary}</p>}
-      <div className="public-prose">
-        {body
-          .split(/\n\s*\n/)
-          .filter(Boolean)
-          .map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
-      </div>
+      <RichText document={bodyRichText} text={body} headingLevel={2} />
       {media.map((m) => (
         <Picture key={m.id} asset={m} />
       ))}

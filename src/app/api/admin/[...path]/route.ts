@@ -5,9 +5,14 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
+import { uploadsDirectory } from "@/server/uploads";
 import { sqlite } from "@/db";
 import { getSession, login, logout, SESSION_COOKIE } from "@/server/auth";
 import { ApiError, conflict } from "@/server/errors";
+import {
+  adminErrorMessage,
+  adminValidationFields,
+} from "@/server/admin-messages";
 import * as store from "@/server/store";
 import { safeUrlSchema, type MediaAsset } from "@/shared/content";
 import { siteUrl, cardUrl, pageUrl } from "@/shared/urls";
@@ -157,9 +162,12 @@ async function handle(
         ]);
       }
       if (req.method === "PATCH") {
-        const { items } = z
+        const { items: submittedItems } = z
           .object({ items: z.array(navSchema).max(300) })
           .parse(await req.json());
+        const items = submittedItems.map((item) =>
+          item.automatic ? item : store.validateNavigationItem(item),
+        );
         for (const n of items) {
           if (n.automatic) continue;
           if (
@@ -226,6 +234,14 @@ async function handle(
         const form = await req.formData();
         const file = form.get("file");
         const alt = z.string().trim().min(1).max(500).parse(form.get("alt"));
+        const caption = z
+          .string()
+          .max(1000)
+          .parse(form.get("caption") || "");
+        const credit = z
+          .string()
+          .max(500)
+          .parse(form.get("credit") || "");
         if (
           !(file instanceof File) ||
           file.size > 5 * 1024 * 1024 ||
@@ -256,25 +272,16 @@ async function handle(
           throw new ApiError(422, "UPLOAD", "Invalid or oversized image");
         }
         const key = `${randomUUID()}.webp`;
-        await mkdir(path.join(process.cwd(), "public/uploads"), {
+        await mkdir(uploadsDirectory(), {
           recursive: true,
         });
-        await writeFile(
-          path.join(process.cwd(), "public/uploads", key),
-          result.data,
-        );
+        await writeFile(path.join(uploadsDirectory(), key), result.data);
         const media: MediaAsset = {
           id: randomUUID(),
           url: `/uploads/${key}`,
           alt,
-          caption: z
-            .string()
-            .max(1000)
-            .parse(form.get("caption") || ""),
-          credit: z
-            .string()
-            .max(500)
-            .parse(form.get("credit") || ""),
+          caption,
+          credit,
           width: result.info.width,
           height: result.info.height,
         };
@@ -307,21 +314,21 @@ async function handle(
           ...store.listEntities("page"),
         ];
         if (
-          all.some((e) => JSON.stringify([e.draft, e.published]).includes(id)) ||
+          all.some((e) =>
+            JSON.stringify([e.draft, e.published]).includes(id),
+          ) ||
           JSON.stringify(store.getSettings().data).includes(id)
         )
-          throw conflict("Media is in use by site content or settings. Remove the reference before deleting.");
+          throw conflict(
+            "Media is in use by site content or settings. Remove the reference before deleting.",
+          );
         const r = sqlite
           .prepare("SELECT stored_key FROM media WHERE id=?")
           .get(id) as { stored_key: string } | undefined;
         if (!r) throw new ApiError(404, "NOT_FOUND", "Media not found");
         sqlite.prepare("DELETE FROM media WHERE id=?").run(id);
         await unlink(
-          path.join(
-            process.cwd(),
-            "public/uploads",
-            path.basename(r.stored_key),
-          ),
+          path.join(uploadsDirectory(), path.basename(r.stored_key)),
         ).catch(() => {});
         store.audit("media.delete", id, user.id);
         return ok({ id });
@@ -354,16 +361,33 @@ async function handle(
   } catch (e) {
     if (e instanceof ApiError)
       return NextResponse.json(
-        { error: { code: e.code, message: e.message } },
+        {
+          error: {
+            code: e.code,
+            message: adminErrorMessage(e.message),
+            ...(e.fields ? { fields: e.fields } : {}),
+          },
+        },
         { status: e.status },
+      );
+    if (e instanceof SyntaxError)
+      return NextResponse.json(
+        {
+          error: {
+            code: "VALIDATION",
+            message:
+              "Не удалось прочитать данные. Обновите страницу и повторите действие.",
+          },
+        },
+        { status: 422 },
       );
     if (e instanceof z.ZodError)
       return NextResponse.json(
         {
           error: {
             code: "VALIDATION",
-            message: "Please check the submitted fields",
-            fields: e.flatten().fieldErrors,
+            message: "Проверьте отмеченные поля и исправьте ошибки.",
+            fields: adminValidationFields(e),
           },
         },
         { status: 422 },
@@ -373,7 +397,8 @@ async function handle(
         {
           error: {
             code: "CONFLICT",
-            message: "This identifier is already in use",
+            message:
+              "Этот адрес или название уже используется. Выберите другое.",
           },
         },
         { status: 409 },
@@ -384,7 +409,10 @@ async function handle(
     );
     return NextResponse.json(
       {
-        error: { code: "INTERNAL", message: "Request could not be completed" },
+        error: {
+          code: "INTERNAL",
+          message: "Не удалось выполнить действие. Повторите попытку позже.",
+        },
       },
       { status: 500 },
     );

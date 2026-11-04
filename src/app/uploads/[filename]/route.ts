@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { sqlite } from "@/db";
+import { uploadsDirectory } from "@/server/uploads";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,9 +23,7 @@ export async function GET(
     .get(filename);
   if (!asset) return new Response(null, { status: 404 });
   try {
-    const file = await readFile(
-      path.join(process.cwd(), "public/uploads", filename),
-    );
+    const file = await readFile(path.join(uploadsDirectory(), filename));
     return new Response(Uint8Array.from(file), {
       headers: {
         "Content-Type": "image/webp",

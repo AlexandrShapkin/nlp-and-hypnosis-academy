@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { defaultTheme, themeSchema, type Theme } from "@/shared/content";
+import { russianName, russianDate } from "./messages";
+import { useUnsavedChanges } from "./useUnsavedChanges";
 import { api } from "./api";
 import { errorMessage, Select } from "./fields";
 type ThemeState = {
@@ -41,6 +43,7 @@ export function ThemeEditor() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  useUnsavedChanges(dirty);
   async function load() {
     const result = await api<ThemeState>("theme");
     setState({
@@ -69,8 +72,8 @@ export function ThemeEditor() {
       kind !== "save" &&
       !confirm(
         kind === "publish"
-          ? "Publish the saved theme to all public pages?"
-          : "Restore this earlier published theme?",
+          ? "Применить сохранённое оформление ко всему сайту?"
+          : "Восстановить это оформление на сайте?",
       )
     )
       return;
@@ -89,10 +92,10 @@ export function ThemeEditor() {
       await load();
       setMessage(
         kind === "save"
-          ? "Theme draft saved. Public styles are unchanged."
+          ? "Оформление сохранено в черновик. Сайт пока выглядит по-прежнему."
           : kind === "publish"
-            ? "Theme published."
-            : "Previous theme restored.",
+            ? "Оформление опубликовано. Изменения видны на сайте."
+            : "Прежнее оформление восстановлено.",
       );
     } catch (e) {
       setError(errorMessage(e));
@@ -102,10 +105,18 @@ export function ThemeEditor() {
   }
   return (
     <>
-      <h1>Design & theme</h1>
+      <h1>Оформление</h1>
       <p className="intro">
-        Approved tokens keep changes safe and consistent. Preview locally, save
-        the draft, then publish.
+        Подберите цвета, шрифты и отступы. Посмотрите результат ниже, сохраните
+        оформление и опубликуйте его.
+      </p>
+      <p className="badge" role="status">
+        {dirty
+          ? "Есть несохранённые изменения"
+          : state &&
+              JSON.stringify(state.draft) !== JSON.stringify(state.published)
+            ? "Черновик сохранён · на сайте прежнее оформление"
+            : "Опубликованное оформление"}
       </p>
       {error && (
         <p role="alert" className="error">
@@ -118,25 +129,25 @@ export function ThemeEditor() {
         </p>
       )}
       {!state ? (
-        <p>Loading theme…</p>
+        <p>Загружаем оформление…</p>
       ) : (
         <>
           <div className="panel">
-            <h2>Brand colors</h2>
+            <h2>Цвета сайта</h2>
             <div className="grid">
               {colors.map((key) => (
-                <label key={key}>
-                  {key}
+                <label key={russianName(key)}>
+                  {russianName(key)}
                   <div style={{ display: "flex", gap: 10 }}>
                     <input
                       type="color"
-                      aria-label={`${key} color picker`}
+                      aria-label={`${russianName(key)}: выбрать цвет`}
                       value={tokens[key]}
                       onChange={(e) => update(key, e.target.value)}
                       style={{ width: 60 }}
                     />
                     <input
-                      aria-label={`${key} hex color`}
+                      aria-label={`${russianName(key)}: код цвета`}
                       value={tokens[key]}
                       pattern="#[0-9a-fA-F]{6}"
                       onChange={(e) => update(key, e.target.value)}
@@ -145,12 +156,12 @@ export function ThemeEditor() {
                 </label>
               ))}
             </div>
-            <h2>Typography, layout & controls</h2>
+            <h2>Шрифты, кнопки и отступы</h2>
             <div className="grid">
               {Object.entries(enums).map(([key, options]) => (
                 <Select
-                  key={key}
-                  label={key}
+                  key={russianName(key)}
+                  label={russianName(key)}
                   value={String(tokens[key as keyof Theme])}
                   options={options}
                   onChange={(value) =>
@@ -159,8 +170,8 @@ export function ThemeEditor() {
                 />
               ))}
               {Object.entries(numbers).map(([key, [min, max, step]]) => (
-                <label key={key}>
-                  {key}
+                <label key={russianName(key)}>
+                  {russianName(key)}
                   <input
                     type="number"
                     value={Number(tokens[key as keyof Theme])}
@@ -182,13 +193,13 @@ export function ThemeEditor() {
                 disabled={busy || !dirty}
                 onClick={() => void action("save")}
               >
-                Save theme draft
+                Сохранить оформление
               </button>
               <button
                 disabled={busy || dirty}
                 onClick={() => void action("publish")}
               >
-                Publish theme
+                Опубликовать оформление
               </button>
               <button
                 className="secondary"
@@ -198,13 +209,13 @@ export function ThemeEditor() {
                   setDirty(true);
                 }}
               >
-                Copy published tokens to draft
+                Вернуть опубликованное оформление в редактор
               </button>
             </div>
           </div>
           <section
             className="preview"
-            aria-label="Private theme preview"
+            aria-label="Предпросмотр оформления"
             style={{
               background: tokens.background,
               color: tokens.text,
@@ -217,7 +228,7 @@ export function ThemeEditor() {
               padding: tokens.sectionSpacing / 2,
             }}
           >
-            <span className="badge">Private live preview · noindex</span>
+            <span className="badge">Предпросмотр · виден только вам</span>
             <h2
               style={{
                 fontFamily:
@@ -265,16 +276,14 @@ export function ThemeEditor() {
             </span>
           </section>
           <div className="panel">
-            <h2>Published theme history & rollback</h2>
+            <h2>История оформления</h2>
             <p className="muted">
-              Restoring activates a previously validated version and creates an
-              audit event.
+              Можно вернуть любой ранее опубликованный вариант. Восстановление
+              сразу изменит оформление сайта.
             </p>
             {state.history.map((item) => (
               <div key={item.id} className="list-row">
-                <span>
-                  {item.createdAt} <code>{item.id.slice(0, 8)}</code>
-                </span>
+                <span>{russianDate(item.createdAt)}</span>
                 <span
                   style={{
                     background: item.tokens.primary,
@@ -288,7 +297,7 @@ export function ThemeEditor() {
                   disabled={busy || dirty}
                   onClick={() => void action("restore", item.id)}
                 >
-                  Restore version
+                  Восстановить эту версию
                 </button>
               </div>
             ))}

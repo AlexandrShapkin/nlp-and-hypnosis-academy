@@ -51,3 +51,25 @@ Example published CSS properties: `--color-primary`, `--color-surface`, `--font-
 - Make draft and published version distinctions obvious.
 - Show missing alt text and invalid destination as blockers.
 - Clarify menu capacity: if many cards are published, collapse overflow into an accessible `More` menu/dropdown; do not silently drop links.
+
+## Russian task-oriented CMS (2026-11)
+
+The dashboard exposes homepage, upload, logo, service, appearance and public-site
+shortcuts. Basic forms show Russian names and visual media selectors; page
+addresses live under advanced settings. Sections appear in public order with
+localized templates, thumbnails, duplicate/move/visibility/delete controls and
+context-specific form fields. Arrow controls provide keyboard ordering.
+
+The visual rich-text editor emits a validated document, never stored HTML.
+Paste inserts plain text; bold/italic/headings/lists/links use the approved schema.
+Existing plain text and published snapshots are preserved. Saved authenticated
+previews reuse actual public components and are noindex. Draft page/card/theme
+changes remain private until explicit publication. Settings and menu saves are
+explicitly labeled as immediately applied. Unsaved editors guard navigation,
+document exit, history traversal where supported, and logout.
+
+Gallery and card selections preserve exact image order. Removing a selection
+never deletes the library file. Media deletion reports reference conflicts in
+Russian. Site settings offer separate header/footer logo and favicon selectors
+and background previews. Theme controls show Russian color/font/layout names,
+a private visual preview, explicit publication and version restore.

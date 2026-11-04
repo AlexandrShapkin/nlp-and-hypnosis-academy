@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { NextRequest } from "next/server";
 process.env.DATABASE_URL = `file:${path.join(mkdtempSync(path.join(tmpdir(), "academy-http-")), "test.sqlite")}`;
+process.env.UPLOADS_DIR = mkdtempSync(
+  path.join(tmpdir(), "academy-http-uploads-"),
+);
 process.env.SITE_URL = "http://localhost:8080";
 let cookieToken: string | undefined;
 vi.mock("next/headers", () => ({

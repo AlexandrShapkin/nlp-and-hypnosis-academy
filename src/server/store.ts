@@ -20,6 +20,7 @@ import {
 } from "@/shared/content";
 import { cardUrl, pageUrl } from "@/shared/urls";
 import { ApiError, conflict } from "./errors";
+import { richTextPlainText } from "@/shared/rich-text";
 type Draft = CardDraft | PageDraft;
 type Row = typeof entities.$inferSelect;
 export function audit(action: string, entityId?: string, actorId?: string) {
@@ -174,21 +175,26 @@ function protectPrivacy(
 }
 function validatePublishedBlocks(d: Draft) {
   if (!("sections" in d)) return;
-  for (const block of d.sections.filter((s) => s.visible)) {
+  for (const [index, block] of d.sections.entries()) {
+    if (!block.visible) continue;
     if (!block.heading.trim())
       throw new ApiError(
         422,
         "BLOCK_REQUIRED",
-        `Section ${block.key} requires a heading`,
+        `Section ${block.heading || "Без названия"} requires a heading`,
+        { [`sections.${index}.heading`]: ["Заполните заголовок раздела."] },
       );
     if (
       ["hero", "about", "rich_text", "legal_text"].includes(block.type) &&
-      !block.body.trim()
+      !(
+        block.bodyRichText ? richTextPlainText(block.bodyRichText) : block.body
+      ).trim()
     )
       throw new ApiError(
         422,
         "BLOCK_REQUIRED",
-        `Section ${block.key} requires body text`,
+        `Section ${block.heading || "Без названия"} requires body text`,
+        { [`sections.${index}.bodyRichText`]: ["Добавьте текст раздела."] },
       );
     if (block.type === "cta") {
       if (
@@ -198,7 +204,8 @@ function validatePublishedBlocks(d: Draft) {
         throw new ApiError(
           422,
           "BLOCK_REQUIRED",
-          `Section ${block.key} requires a CTA label`,
+          `Section ${block.heading || "Без названия"} requires a CTA label`,
+          { [`sections.${index}.data.ctaLabel`]: ["Введите текст кнопки."] },
         );
       if (
         typeof block.data.ctaUrl !== "string" ||
@@ -207,7 +214,12 @@ function validatePublishedBlocks(d: Draft) {
         throw new ApiError(
           422,
           "BLOCK_REQUIRED",
-          `Section ${block.key} requires a safe CTA destination`,
+          `Section ${block.heading || "Без названия"} requires a safe CTA destination`,
+          {
+            [`sections.${index}.data.ctaUrl`]: [
+              "Выберите безопасную ссылку для кнопки.",
+            ],
+          },
         );
     }
     if (block.type === "contact_form") {
@@ -218,7 +230,12 @@ function validatePublishedBlocks(d: Draft) {
         throw new ApiError(
           422,
           "BLOCK_REQUIRED",
-          `Section ${block.key} requires a submit label`,
+          `Section ${block.heading || "Без названия"} requires a submit label`,
+          {
+            [`sections.${index}.data.submitLabel`]: [
+              "Введите текст кнопки отправки.",
+            ],
+          },
         );
       if (!publishedEntities("page").some((p) => p.slug === "privacy"))
         throw new ApiError(
@@ -233,8 +250,12 @@ function checkReferences(d: Draft) {
   const mediaIds = "mediaIds" in d ? d.mediaIds : [];
   for (const id of [
     ...mediaIds,
+    ...(d.seo.ogImageId ? [d.seo.ogImageId] : []),
     ...("sections" in d
-      ? d.sections.flatMap((s) => (s.imageId ? [s.imageId] : []))
+      ? d.sections.flatMap((s) => [
+          ...(s.imageId ? [s.imageId] : []),
+          ...(Array.isArray(s.data.mediaIds) ? s.data.mediaIds : []),
+        ])
       : []),
   ]) {
     const asset = getMediaList().find((m) => m.id === id);
@@ -460,9 +481,18 @@ export function getSettings() {
 export function saveSettings(input: unknown, version: number, actor?: string) {
   const s = settingsSchema.parse(input);
   const available = new Set(getMediaList().map((m) => m.id));
-  for (const id of [s.logoImageId, s.footerLogoImageId, s.faviconImageId, s.seo.ogImageId]) {
+  for (const id of [
+    s.logoImageId,
+    s.footerLogoImageId,
+    s.faviconImageId,
+    s.seo.ogImageId,
+  ]) {
     if (id && !available.has(id))
-      throw new ApiError(422, "INVALID_MEDIA", "Choose an existing image from the media library");
+      throw new ApiError(
+        422,
+        "INVALID_MEDIA",
+        "Choose an existing image from the media library",
+      );
   }
   return sqlite.transaction(() => {
     if (getSettings().version !== version) throw conflict();
@@ -521,6 +551,55 @@ export function manualNavigation(): NavigationItem[] {
       payload: string;
     }[]
   ).map((r) => JSON.parse(r.payload));
+}
+export function validateNavigationItem(item: NavigationItem): NavigationItem {
+  const pages = publishedEntities("page") as (PageDraft & { id: string })[];
+  const cards = publishedEntities("card") as (CardDraft & { id: string })[];
+  let href = item.href;
+  const target = item.target;
+  if (target?.kind === "page" || target?.kind === "card") {
+    const entity = (target.kind === "card" ? cards : pages).find(
+      (e) => e.id === target.id,
+    );
+    if (!entity)
+      throw new ApiError(
+        422,
+        "NAV_TARGET",
+        "Navigation requires published content",
+      );
+    href = target.kind === "card" ? cardUrl(entity.slug) : pageUrl(entity.slug);
+  } else if (target?.kind === "section") {
+    const section = pages
+      .find((p) => p.slug === "home")
+      ?.sections.find(
+        (s) => s.visible && (s.id === target.id || s.key === target.id),
+      );
+    if (!section)
+      throw new ApiError(
+        422,
+        "NAV_TARGET",
+        "Choose a visible homepage section",
+      );
+    href = `/#${section.key}`;
+  } else if (target?.kind === "external" && target.url) {
+    href = safeUrlSchema.parse(target.url);
+  }
+  if (href.startsWith("/")) {
+    const [pathname, fragment] = href.split("#");
+    const page = pages.find((p) => pageUrl(p.slug) === pathname);
+    const card = cards.find((c) => cardUrl(c.slug) === pathname);
+    if (
+      (!page && !card) ||
+      (fragment && !page?.sections.some((s) => s.visible && s.key === fragment))
+    ) {
+      throw new ApiError(
+        422,
+        "NAV_TARGET",
+        "Navigation requires published content",
+      );
+    }
+  }
+  return { ...item, href };
 }
 export function publicNavigation(): NavigationItem[] {
   const cards = publishedEntities("card") as (CardDraft & { id: string })[];
@@ -586,6 +665,14 @@ export function publicNavigation(): NavigationItem[] {
             href:
               target.kind === "card" ? cardUrl(item.slug) : pageUrl(item.slug),
           };
+        }
+        if (target?.kind === "section") {
+          const section = pages
+            .find((p) => p.slug === "home")
+            ?.sections.find(
+              (s) => s.visible && (s.id === target.id || s.key === target.id),
+            );
+          return section ? { ...n, href: `/#${section.key}` } : null;
         }
         if (
           n.href.startsWith("/topics/") &&

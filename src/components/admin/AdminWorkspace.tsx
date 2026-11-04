@@ -7,6 +7,7 @@ import { ThemeEditor } from "./ThemeEditor";
 import { SettingsEditor } from "./SettingsEditor";
 import { NavigationEditor } from "./NavigationEditor";
 import { MediaEditor } from "./MediaEditor";
+import { russianName, russianDate } from "./messages";
 type Row = Record<string, unknown>;
 export function AdminWorkspace({ route }: { route: string }) {
   return (
@@ -46,58 +47,80 @@ function Overview() {
   }, []);
   return (
     <>
-      <p className="eyebrow">EDITORIAL CONTROL</p>
-      <h1>Maintainer overview</h1>
-      <p className="intro">
-        Manage approved content, publishing, and the public site from one
-        workspace.
-      </p>
-      <div className="panel notice">
-        <h2>Editorial onboarding</h2>
-        <p>
-          TODO: review biography, qualifications, service information, legal
-          documents, and approved contact details before public launch. Publish
-          only verified claims and consented testimonials.
-        </p>
-        <p>
-          Draft saves do not alter the published site. Use Preview, then Publish
-          when the content is approved.
-        </p>
-      </div>
+      <p className="eyebrow">ВАШ САЙТ</p>
+      <h1>Главная</h1>
+      <p className="intro">Что вы хотите изменить сегодня?</p>
       {error && (
         <p role="alert" className="error">
           {error}
         </p>
       )}
-      <div className="panel">
-        <h2>Photos, galleries &amp; logo</h2>
-        <p>Upload images to the library once and reuse them. Choose photos visually inside page sections or cards; select the header/footer logo in Site settings. Save and publish page/card drafts to show changes publicly.</p>
-        <div className="toolbar">
-          <Link className="button" href="/admin/media">Open media library</Link>
-          <Link className="button" href="/admin/pages">Edit section images</Link>
-          <Link className="button" href="/admin/settings">Change logo</Link>
-        </div>
+      <div className="cms-quick-actions">
+        {[
+          [
+            "/admin/pages?home=1",
+            "Изменить главную страницу",
+            "Заголовки, фотографии и разделы",
+          ],
+          [
+            "/admin/media",
+            "Добавить фотографию",
+            "Загрузить и использовать на сайте",
+          ],
+          [
+            "/admin/settings#branding",
+            "Поменять логотип",
+            "Логотипы в шапке и подвале",
+          ],
+          [
+            "/admin/cards?new=service",
+            "Добавить услугу",
+            "Описание, фотографии и публикация",
+          ],
+          ["/admin/theme", "Изменить оформление", "Цвета, шрифты и кнопки"],
+          ["/", "Посмотреть сайт", "Открыть опубликованную версию"],
+        ].map(([href, title, description]) => (
+          <Link
+            key={href}
+            href={href}
+            className="panel cms-quick-action"
+            target={href === "/" ? "_blank" : undefined}
+          >
+            <strong>{title} ↗</strong>
+            <span className="muted">{description}</span>
+          </Link>
+        ))}
       </div>
       <div className="grid">
         {Object.entries(counts).map(([key, count]) => (
-          <a className="panel" key={key} href={`/admin/${key}`}>
+          <Link className="panel" key={key} href={`/admin/${key}`}>
             <h2>{count}</h2>
-            {key}
-          </a>
+            {
+              {
+                cards: "Карточек и материалов",
+                pages: "Страниц сайта",
+                leads: "Заявок",
+              }[key]
+            }
+          </Link>
         ))}
       </div>
-      <div className="panel">
-        <h2>Recommended workflow</h2>
-        <ol>
-          <li>Update global settings and legal pages.</li>
-          <li>Edit the home page sections and reusable cards.</li>
-          <li>Preview drafts, then publish approved revisions.</li>
-          <li>Review generated navigation, SEO, and the public site.</li>
-        </ol>
+      <div className="panel notice">
+        <h2>Изменения под вашим контролем</h2>
+        <p>
+          Сначала сохраните изменения, затем откройте предпросмотр. Нажмите
+          «Опубликовать», когда всё готово. До публикации посетители видят
+          прежнюю версию.
+        </p>
+        <p className="muted">
+          Настройки сайта и меню применяются сразу после сохранения — кнопки на
+          этих страницах напоминают об этом.
+        </p>
       </div>
     </>
   );
 }
+
 function Records({ kind }: { kind: "leads" | "audit" }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState("");
@@ -112,15 +135,26 @@ function Records({ kind }: { kind: "leads" | "audit" }) {
     void load();
   }, [load]);
   const keys = Array.from(new Set(rows.flatMap(Object.keys))).filter(
-    (k) => k !== "id",
+    (k) =>
+      ![
+        "id",
+        "actor_id",
+        "actorId",
+        "entity_id",
+        "entityId",
+        "ip_hash",
+        "ipHash",
+        "user_id",
+        "userId",
+      ].includes(k),
   );
   return (
     <>
-      <h1>{kind === "leads" ? "Private inquiries" : "Audit history"}</h1>
+      <h1>{kind === "leads" ? "Заявки" : "История изменений"}</h1>
       <p className="intro">
         {kind === "leads"
-          ? "Restricted personal data. Remove inquiries when no longer needed."
-          : "Recorded administrative actions with redacted summaries."}
+          ? "Здесь собраны обращения посетителей. Удаляйте заявки, которые больше не нужны."
+          : "Здесь видно, когда и какие изменения вносились на сайт."}
       </p>
       {error && (
         <p className="error" role="alert">
@@ -129,15 +163,15 @@ function Records({ kind }: { kind: "leads" | "audit" }) {
       )}
       <div className="panel table-scroll">
         {!rows.length ? (
-          <p>No records yet.</p>
+          <p>Записей пока нет.</p>
         ) : (
           <table>
             <thead>
               <tr>
                 {keys.map((k) => (
-                  <th key={k}>{k}</th>
+                  <th key={k}>{russianName(k)}</th>
                 ))}
-                {kind === "leads" && <th>Actions</th>}
+                {kind === "leads" && <th>Действия</th>}
               </tr>
             </thead>
             <tbody>
@@ -145,9 +179,26 @@ function Records({ kind }: { kind: "leads" | "audit" }) {
                 <tr key={String(row.id ?? i)}>
                   {keys.map((k) => (
                     <td key={k}>
-                      {typeof row[k] === "object"
-                        ? JSON.stringify(row[k])
-                        : String(row[k] ?? "")}
+                      {/[dD]ate|[aA]t$|_at$|[uU]ntil$/.test(k)
+                        ? russianDate(row[k])
+                        : typeof row[k] === "boolean"
+                          ? row[k]
+                            ? "Да"
+                            : "Нет"
+                          : typeof row[k] === "object"
+                            ? "Изменения сохранены"
+                            : k === "action"
+                              ? actionLabel(String(row[k]))
+                              : k === "entity_type" || k === "entityType"
+                                ? {
+                                    card: "Материал",
+                                    page: "Страница",
+                                    theme: "Оформление",
+                                    settings: "Настройки",
+                                    media: "Изображение",
+                                    navigation: "Меню",
+                                  }[String(row[k])] || "Сайт"
+                                : String(row[k] ?? "—")}
                     </td>
                   ))}
                   {kind === "leads" && (
@@ -155,7 +206,11 @@ function Records({ kind }: { kind: "leads" | "audit" }) {
                       <button
                         className="danger"
                         onClick={async () => {
-                          if (!confirm("Permanently delete this inquiry?"))
+                          if (
+                            !confirm(
+                              "Удалить заявку навсегда? Восстановить её не получится.",
+                            )
+                          )
                             return;
                           try {
                             await api(`leads/${row.id}`, "DELETE");
@@ -165,7 +220,7 @@ function Records({ kind }: { kind: "leads" | "audit" }) {
                           }
                         }}
                       >
-                        Delete inquiry
+                        Удалить заявку
                       </button>
                     </td>
                   )}
@@ -193,27 +248,29 @@ function SeoWorkspace() {
   }, []);
   return (
     <>
-      <h1>SEO & redirects</h1>
+      <h1>Поисковая оптимизация</h1>
       <p className="intro">
-        Per-page and per-card metadata are edited with their content. Global
-        defaults are in site settings.
+        Заголовок, описание и изображение для поиска можно изменить в редакторе
+        каждой страницы или материала. Общие настройки применяются, если
+        отдельные поля не заполнены.
       </p>
       <div className="toolbar">
         <Link className="button" href="/admin/pages">
-          Page SEO
+          Поиск: страницы
         </Link>
         <Link className="button" href="/admin/cards">
-          Card SEO
+          Поиск: материалы
         </Link>
         <Link className="button" href="/admin/settings">
-          Global SEO
+          Общие настройки поиска
         </Link>
       </div>
-      <div className="panel">
-        <h2>Create permanent redirect</h2>
+      <details className="panel">
+        <summary>Дополнительно: перенаправления адресов</summary>
+        <h2>Перенаправить старый адрес</h2>
         <p className="muted">
-          Published slug changes create redirects automatically. Manual
-          redirects accept local paths and reject loops.
+          При изменении адреса опубликованной страницы перенаправление создаётся
+          автоматически. Дополнительные перенаправления доступны ниже.
         </p>
         <form
           onSubmit={async (e) => {
@@ -226,7 +283,7 @@ function SeoWorkspace() {
                 oldPath: values.get("oldPath"),
                 newPath: values.get("newPath"),
               });
-              setMessage("Redirect saved.");
+              setMessage("Перенаправление сохранено.");
               form.reset();
               void load();
             } catch (e) {
@@ -236,17 +293,17 @@ function SeoWorkspace() {
         >
           <div className="grid">
             <label>
-              Old path
+              Старый адрес
               <input name="oldPath" placeholder="/old-path" required />
             </label>
             <label>
-              New path
+              Новый адрес
               <input name="newPath" placeholder="/topics/new-path" required />
             </label>
           </div>
-          <button>Add 301 redirect</button>
+          <button>Добавить перенаправление</button>
         </form>
-      </div>
+      </details>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -258,7 +315,7 @@ function SeoWorkspace() {
         </p>
       )}
       <div className="panel">
-        <h2>Redirect registry</h2>
+        <h2>Сохранённые перенаправления</h2>
         {rows.map((row, i) => (
           <p key={String(row.id ?? i)}>
             <code>{String(row.oldPath ?? row.old_path)}</code> →{" "}
@@ -266,8 +323,29 @@ function SeoWorkspace() {
             <span className="badge">301</span>
           </p>
         ))}
-        {!rows.length && <p>No redirects yet.</p>}
+        {!rows.length && <p>Перенаправлений пока нет.</p>}
       </div>
     </>
+  );
+}
+
+function actionLabel(action: string) {
+  const verb = action.split(".").at(-1) || action;
+  return (
+    (
+      {
+        create: "Создание",
+        update: "Сохранение изменений",
+        save: "Сохранение",
+        publish: "Публикация",
+        unpublish: "Снятие с публикации",
+        delete: "Удаление",
+        archive: "Удаление материала",
+        upload: "Загрузка изображения",
+        login: "Вход",
+        logout: "Выход",
+        restore: "Восстановление версии",
+      } as Record<string, string>
+    )[verb] || "Изменение сайта"
   );
 }

@@ -2,6 +2,8 @@
 import { useId } from "react";
 import type { Seo, MediaAsset } from "@/shared/content";
 import { MediaPicker } from "./MediaPicker";
+import { russianName, menuNames } from "./messages";
+import { ZodError } from "zod";
 export function Field({
   label,
   value,
@@ -9,6 +11,7 @@ export function Field({
   multiline = false,
   type = "text",
   hint,
+  error,
 }: {
   label: string;
   value: string;
@@ -16,6 +19,7 @@ export function Field({
   multiline?: boolean;
   type?: string;
   hint?: string;
+  error?: string;
 }) {
   const id = useId();
   const hintId = `${id}-hint`;
@@ -27,18 +31,25 @@ export function Field({
       {multiline ? (
         <textarea
           id={id}
-          aria-describedby={hint ? hintId : undefined}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : hint ? hintId : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
       ) : (
         <input
           id={id}
-          aria-describedby={hint ? hintId : undefined}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : hint ? hintId : undefined}
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
+      )}
+      {error && (
+        <p id={`${id}-error`} className="error" role="alert">
+          {error}
+        </p>
       )}
       {hint && (
         <span id={hintId} className="muted">
@@ -59,15 +70,22 @@ export function Select({
   options: readonly string[];
   onChange: (v: string) => void;
 }) {
+  const id = useId();
   return (
-    <label>
-      {label}
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
+    <div style={{ marginBottom: 15 }}>
+      <label htmlFor={id}>{label}</label>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((value) => (
-          <option key={value}>{value}</option>
+          <option key={value} value={value}>
+            {label.includes("меню") ||
+            label === "Расположение" ||
+            label === "Где показывать меню"
+              ? menuNames[value as keyof typeof menuNames] || russianName(value)
+              : russianName(value)}
+          </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 export function SeoFields({
@@ -83,25 +101,24 @@ export function SeoFields({
 }) {
   return (
     <details className="section-box">
-      <summary>Search metadata & indexing</summary>
+      <summary>Как страница выглядит в поиске</summary>
       <div className="grid">
         <Field
-          label="SEO title"
+          label="Заголовок для поисковых систем"
           value={seo.title || ""}
           onChange={(title) => onChange({ ...seo, title })}
         />
-
       </div>
       <MediaPicker
-        label="Social sharing image"
+        label="Изображение для социальных сетей"
         value={seo.ogImageId ? [seo.ogImageId] : []}
         media={media}
         onUploaded={onUploaded}
         onChange={(ids) => onChange({ ...seo, ogImageId: ids[0] })}
-        hint="Optional image displayed when the page is shared on social networks."
+        hint="Эту фотографию увидят при отправке ссылки на страницу."
       />
       <Field
-        label="SEO description"
+        label="Описание страницы"
         value={seo.description || ""}
         onChange={(description) => onChange({ ...seo, description })}
         multiline
@@ -112,19 +129,26 @@ export function SeoFields({
           checked={seo.noindex}
           onChange={(e) => onChange({ ...seo, noindex: e.target.checked })}
         />
-        Exclude this content from indexing
+        Скрывать страницу от поисковых систем
       </label>
       <div className="notice">
-        <strong>{seo.title || "Page title"}</strong>
-        <p>{seo.description || "Search description preview"}</p>
+        <strong>{seo.title || "Название страницы"}</strong>
+        <p>{seo.description || "Здесь появится описание для поиска"}</p>
       </div>
     </details>
   );
 }
 export function errorMessage(error: unknown) {
-  return error instanceof Error
+  if (error instanceof ZodError)
+    return error.issues
+      .map(
+        (issue) =>
+          `${russianName(String(issue.path.at(-1) || "title"))}: ${issue.code === "too_small" ? "заполните поле" : issue.code === "too_big" ? "сократите значение" : "проверьте значение"}`,
+      )
+      .join(". ");
+  return error instanceof Error && /[а-яё]/i.test(error.message)
     ? error.message
-    : "The request could not be completed.";
+    : "Не удалось выполнить действие. Проверьте соединение и повторите попытку.";
 }
 export function slugify(text: string) {
   const from = "абвгдеёзийклмнопрстуфхцчшщъыьэюя";

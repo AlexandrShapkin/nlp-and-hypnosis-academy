@@ -29,46 +29,65 @@ export default async function PreviewPage({
     const draft = cardSchema.parse(entity.draft);
     return (
       <>
-        <div className="notice">
-          Private saved draft preview · noindex ·{" "}
-          <Link href="/admin/cards">Back to editor</Link>
-        </div>
+        <aside className="cms-preview-banner" aria-label="Предпросмотр">
+          Предпросмотр сохранённого черновика · виден только вам ·{" "}
+          <Link href="/admin/cards">Вернуться в редактор</Link>
+        </aside>
         <SiteShell
           settings={home.settings}
           navigation={home.navigation}
           theme={home.theme}
           media={home.media}
         >
-          <DetailContent
-            title={draft.title}
-            summary={draft.summary}
-            body={draft.body}
-            media={draft.mediaIds.flatMap((id) => home.media.filter((m) => m.id === id))}
-          />
+          <main id="main">
+            <DetailContent
+              title={draft.title}
+              summary={draft.summary}
+              body={draft.body}
+              bodyRichText={draft.bodyRichText}
+              media={draft.mediaIds.flatMap((id) =>
+                home.media.filter((m) => m.id === id),
+              )}
+            />
+          </main>
         </SiteShell>
       </>
     );
   }
   const draft = pageSchema.parse(entity.draft);
+  const hasHero = draft.sections.some(
+    (section) => section.visible && section.type === "hero",
+  );
   return (
     <>
-      <div className="notice">
-        Private saved draft preview · noindex ·{" "}
-        <Link href="/admin/pages">Back to editor</Link>
-      </div>
+      <aside className="cms-preview-banner" aria-label="Предпросмотр">
+        Предпросмотр сохранённого черновика · виден только вам ·{" "}
+        <Link href="/admin/pages">Вернуться в редактор</Link>
+      </aside>
       <SiteShell
         settings={home.settings}
         navigation={home.navigation}
         theme={home.theme}
-          media={home.media}
+        media={home.media}
       >
-        {draft.sections.length ? (
+        <main id="main">
+          {!hasHero &&
+            (draft.slug === "home" ? (
+              <div className="public-container public-detail">
+                <h1>{draft.title}</h1>
+              </div>
+            ) : (
+              <DetailContent
+                title={draft.title}
+                body={draft.body}
+                bodyRichText={draft.bodyRichText}
+                media={[]}
+              />
+            ))}
           <PublicContent
             home={{ ...home, page: { ...draft, id: entity.id } }}
           />
-        ) : (
-          <DetailContent title={draft.title} body={draft.body} media={[]} />
-        )}
+        </main>
       </SiteShell>
     </>
   );

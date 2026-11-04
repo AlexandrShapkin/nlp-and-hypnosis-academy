@@ -11,18 +11,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=high
-      - run: npm run db:migrate && npm run db:seed
-      - run: npm run lint && npm run typecheck && npm test && npm run build
+      - run: npm run lint && npm run typecheck && npm test
       - run: npx playwright install --with-deps chromium
         env:
           PLAYWRIGHT_BROWSERS_PATH: /tmp/nlp-playwright
-      - name: Browser acceptance on the single production server
-        run: |
-          npm run start > /tmp/nlp-server.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" || true' EXIT
-          for attempt in $(seq 1 30); do
-            if curl -fsS http://localhost:8080/ > /dev/null; then break; fi
-            sleep 1
-          done
-          npm run test:e2e
+      - name: Isolated CMS acceptance on the production build
+        run: npm run test:cms

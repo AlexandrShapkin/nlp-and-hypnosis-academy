@@ -48,3 +48,26 @@ Evidence location after implementation: `reports/acceptance-latest.md`.
 - No push, merge, deployment or production-data change performed. Working-tree changes remain uncommitted.
 
 Independent final review confirmed returned upload URL200 and hero image/alt publication, guard regressions,37tests, runtime audit0, SEO/auth HTTP probes and cleanup of the random review account.
+
+## Russian CMS redesign — current feature branch
+
+- Branch: `feat/russian-friendly-cms`, based on existing media/branding work (PR #1).
+- Three implementation workers delivered Russian task navigation, contextual section templates,
+  safe rich text, visual ordered media, branding/settings/theme and stable menu destinations.
+- No database migration required; legacy snapshots/plain text remain compatible.
+- `npm ci`, format/lint/typecheck, 51 unit/integration tests and production compilation pass.
+- Initial browser run exposed selector ambiguity and select label association; fixes integrated.
+- Full isolated browser suite and independent acceptance: PASS. Earlier roadmap
+  verification entries refer to the previous MVP baseline; final redesign evidence follows below.
+- OpenCode catalog verified in secured sandbox; free execution quota unavailable. No paid models used.
+
+### Final redesign verification and acceptance
+
+- Final format/lint/typecheck, 51 unit/integration tests and production build: PASS.
+- Final isolated Playwright: **14/14 PASS (36.1s)**, including custom-page hidden-hero preview parity.
+- Worker security tests: **6/6 PASS**, real secured catalog probe PASS; free inference unavailable (quota).
+- Independent reviewer: **PASS** after resolving one P1 preview/body-edit defect and two P2 preview-layout/retention-localization findings. Independent targeted regression 1/1 PASS and separate preview/public text comparison PASS.
+- Runtime dependency audit: zero vulnerabilities. Existing local runtime/configuration fingerprints: 6/6 unchanged.
+- Six CMS screenshots and complete implementation/changed-file reports are in `reports/`.
+- Delivered: [PR #2](https://github.com/AlexandrShapkin/nlp-and-hypnosis-academy/pull/2),
+  based on the existing media/branding branch (PR #1). No production deployment or merge.

@@ -9,9 +9,9 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   return (
     <main className="cms-login">
-      <p className="eyebrow">NLP & HYPNOSIS ACADEMY</p>
-      <h1>Maintainer sign in</h1>
-      <p>Use your privately configured maintainer account.</p>
+      <p className="eyebrow">АКАДЕМИЯ НЛП И ГИПНОЗА</p>
+      <h1>Вход в управление сайтом</h1>
+      <p>Введите электронную почту и пароль вашей учётной записи.</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -33,11 +33,11 @@ export default function Login() {
         }}
       >
         <label>
-          Email
+          Электронная почта
           <input name="email" type="email" autoComplete="username" required />
         </label>
         <label>
-          Password
+          Пароль
           <input
             name="password"
             type="password"
@@ -50,17 +50,16 @@ export default function Login() {
             {error}
           </p>
         )}
-        <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+        <button disabled={busy}>{busy ? "Входим…" : "Войти"}</button>
       </form>
       <details>
-        <summary>First-time setup</summary>
+        <summary>Нет доступа?</summary>
         <p>
-          An operator must run <code>npm run admin:bootstrap</code> with private
-          bootstrap credentials. There is no default password or public account
-          registration.
+          Попросите владельца сайта создать для вас учётную запись или
+          восстановить доступ.
         </p>
       </details>
-      <Link href="/">Return to public site</Link>
+      <Link href="/">Вернуться на сайт</Link>
     </main>
   );
 }

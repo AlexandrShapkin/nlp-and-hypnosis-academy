@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import type { NavigationItem, Settings, Theme, MediaAsset } from "@/shared/content";
+import type {
+  NavigationItem,
+  Settings,
+  Theme,
+  MediaAsset,
+} from "@/shared/content";
 import { themeStyle } from "./theme";
 export function SiteShell({
   settings,
@@ -17,7 +22,9 @@ export function SiteShell({
   children: ReactNode;
 }) {
   const headerLogo = media.find((item) => item.id === settings.logoImageId);
-  const footerLogo = media.find((item) => item.id === settings.footerLogoImageId);
+  const footerLogo = media.find(
+    (item) => item.id === settings.footerLogoImageId,
+  );
   const primary = navigation
     .filter((n) => n.visible && n.group === "primary")
     .sort((a, b) => a.order - b.order);
@@ -51,7 +58,9 @@ export function SiteShell({
                 unoptimized
               />
             ) : (
-              <span className="public-brand-mark" aria-hidden="true">✳</span>
+              <span className="public-brand-mark" aria-hidden="true">
+                ✳
+              </span>
             )}
             <span>{settings.brandLabel}</span>
           </Link>
@@ -108,7 +117,9 @@ export function SiteShell({
                   unoptimized
                 />
               ) : (
-                <span className="public-brand-mark" aria-hidden="true">✳</span>
+                <span className="public-brand-mark" aria-hidden="true">
+                  ✳
+                </span>
               )}
               {settings.brandLabel}
             </Link>

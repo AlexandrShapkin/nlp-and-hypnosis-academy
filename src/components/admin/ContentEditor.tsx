@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useId, useState } from "react";
 import {
   blockTypes,
   cardTypes,
@@ -11,53 +12,74 @@ import {
   type Entity,
   type MediaAsset,
 } from "@/shared/content";
-import { api } from "./api";
+import { api, CmsRequestError } from "./api";
 import { Field, Select, SeoFields, errorMessage, slugify } from "./fields";
 import { MediaPicker } from "./MediaPicker";
+import { RichTextEditor } from "./RichTextEditor";
+import { russianName, unsavedMessage } from "./messages";
+import { useUnsavedChanges } from "./useUnsavedChanges";
 type Draft = CardDraft | PageDraft;
 const emptyCard = () => ({
-  ...cardSchema.parse({ title: "New card", slug: "new-card" }),
+  ...cardSchema.parse({ title: "Новый материал", slug: "new-card" }),
   title: "",
 });
 const emptyPage = () => ({
-  ...pageSchema.parse({ title: "New page", slug: "new-page" }),
+  ...pageSchema.parse({ title: "Новая страница", slug: "new-page" }),
   title: "",
 });
 export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
+  const sectionSelectId = useId();
   const [entities, setEntities] = useState<Entity<Draft>[]>([]);
   const [selected, setSelected] = useState<Entity<Draft> | null>(null);
   const [draft, setDraft] = useState<Draft>(
     kind === "cards" ? emptyCard() : emptyPage(),
   );
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState(false);
   const [filter, setFilter] = useState("");
   const [media, setMedia] = useState<MediaAsset[]>([]);
   const [homeSections, setHomeSections] = useState<Block[]>([]);
-  const onUploaded = (asset: MediaAsset) => setMedia((items) => [...items, asset]);
   const [dirty, setDirty] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
-  const load = useCallback(async () => {
-    const result = await api<Entity<Draft>[]>(kind);
-    setEntities(result.data);
-  }, [kind]);
+  useUnsavedChanges(dirty);
+  const onUploaded = (asset: MediaAsset) =>
+    setMedia((items) => [...items, asset]);
+  const load = useCallback(
+    async () => setEntities((await api<Entity<Draft>[]>(kind)).data),
+    [kind],
+  );
   useEffect(() => {
     void api<Entity<Draft>[]>(kind)
-      .then((r) => setEntities(r.data))
+      .then((r) => {
+        setEntities(r.data);
+        const query = new URLSearchParams(window.location.search);
+        if (kind === "pages" && query.has("home")) {
+          const home = r.data.find((entity) => entity.draft.slug === "home");
+          if (home) {
+            setSelected(home);
+            setDraft(home.draft);
+          }
+        }
+        if (kind === "cards" && query.get("new") === "service")
+          setDraft({ ...emptyCard(), type: "service" });
+      })
       .catch((e) => setError(errorMessage(e)));
     void api<MediaAsset[]>("media")
       .then((r) => setMedia(r.data))
-      .catch(() => {});
-    if (kind === "cards") {
+      .catch((e) => setError(errorMessage(e)));
+    if (kind === "cards")
       void api<Entity<PageDraft>[]>("pages")
-        .then((r) => setHomeSections(r.data.find((e) => e.draft.slug === "home")?.draft.sections || []))
-        .catch(() => {});
-    }
+        .then((r) =>
+          setHomeSections(
+            r.data.find((e) => e.draft.slug === "home")?.draft.sections || [],
+          ),
+        )
+        .catch((e) => setError(errorMessage(e)));
   }, [kind]);
   function edit(entity: Entity<Draft> | null) {
-    if (dirty && !confirm("Discard unsaved edits?")) return;
+    if (dirty && !confirm(unsavedMessage)) return;
     setSelected(entity);
     setDraft(
       entity ? entity.draft : kind === "cards" ? emptyCard() : emptyPage(),
@@ -66,313 +88,403 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
     setSlugTouched(false);
     setError("");
     setMessage("");
-    setPreview(false);
+    setFieldErrors({});
   }
   function update(patch: Partial<CardDraft & PageDraft>) {
     setDraft({ ...draft, ...patch });
     setDirty(true);
     setMessage("");
+    setFieldErrors((errors) =>
+      Object.fromEntries(
+        Object.entries(errors).filter(([key]) => !(key in patch)),
+      ),
+    );
   }
-  async function save() {
+  async function save(preview = false) {
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      const parsed =
-        kind === "cards" ? cardSchema.parse(draft) : pageSchema.parse(draft);
-      const result = await api<Entity<Draft>>(
+      const result = (kind === "cards" ? cardSchema : pageSchema).safeParse(
+        draft,
+      );
+      if (!result.success) {
+        const errors: Record<string, string> = {};
+        result.error.issues.forEach((issue) => {
+          errors[issue.path.join(".")] =
+            issue.code === "too_small"
+              ? "Заполните это поле."
+              : "Проверьте значение этого поля.";
+        });
+        setFieldErrors(errors);
+        setError(errorMessage(result.error));
+        return null;
+      }
+      const response = await api<Entity<Draft>>(
         selected ? `${kind}/${selected.id}` : kind,
         selected ? "PATCH" : "POST",
-        { ...parsed, ...(selected ? { version: selected.version } : {}) },
+        { ...result.data, ...(selected ? { version: selected.version } : {}) },
       );
-      setSelected(result.data);
-      setDraft(result.data.draft);
+      setSelected(response.data);
+      setDraft(response.data.draft);
       setDirty(false);
-      setMessage("Draft saved. Public content is unchanged.");
+      setFieldErrors({});
+      setMessage(
+        "Изменения сохранены в черновик. На сайте пока прежняя версия.",
+      );
       await load();
-      return result.data;
+      if (preview)
+        window.open(
+          `/admin/preview/${kind}/${response.data.id}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+      return response.data;
     } catch (e) {
       setError(errorMessage(e));
+      if (e instanceof CmsRequestError)
+        setFieldErrors(
+          Object.fromEntries(
+            Object.entries(e.fields).map(([key, values]) => [
+              key,
+              values.join(". "),
+            ]),
+          ),
+        );
       return null;
     } finally {
       setBusy(false);
     }
   }
   async function publish(action: "publish" | "unpublish") {
-    if (dirty) {
-      setError("Save the draft before publishing.");
-      return;
-    }
-    if (!selected) {
-      setError("Save a draft first.");
+    if (dirty || !selected) {
+      setError("Сначала сохраните изменения.");
       return;
     }
     if (
       !confirm(
         action === "publish"
-          ? "Publish this saved draft to the public site?"
-          : "Unpublish this content and remove its public navigation link?",
+          ? "Опубликовать сохранённые изменения на сайте?"
+          : "Скрыть материал на сайте и убрать его из меню?",
       )
     )
       return;
     setBusy(true);
     setError("");
     try {
-      const result = await api<Entity<Draft>>(
+      const response = await api<Entity<Draft>>(
         `${kind}/${selected.id}/${action}`,
         "POST",
         { version: selected.version },
       );
-      setSelected(result.data);
-      setDraft(result.data.draft);
+      setSelected(response.data);
+      setDraft(response.data.draft);
       setMessage(
         action === "publish"
-          ? "Published successfully."
-          : "Content unpublished.",
+          ? "Опубликовано. Изменения уже видны на сайте."
+          : "Материал снят с публикации и скрыт на сайте.",
       );
       await load();
     } catch (e) {
       setError(errorMessage(e));
+      if (e instanceof CmsRequestError)
+        setFieldErrors(
+          Object.fromEntries(
+            Object.entries(e.fields).map(([key, values]) => [
+              key,
+              values.join(". "),
+            ]),
+          ),
+        );
     } finally {
       setBusy(false);
     }
   }
   const isCard = "type" in draft;
+  const savedDraft =
+    selected?.published &&
+    JSON.stringify(selected.draft) !== JSON.stringify(selected.published);
   return (
     <>
-      <h1>
-        {kind === "cards" ? "Cards & reusable content" : "Pages & sections"}
-      </h1>
+      <h1>{kind === "cards" ? "Карточки и материалы" : "Страницы сайта"}</h1>
       <p className="intro">
-        Save a private draft, preview it, then explicitly publish. New cards
-        join navigation by default.
+        Сохраните изменения, посмотрите результат и опубликуйте, когда всё
+        готово.
       </p>
       <div className="editor-layout">
-        <aside className="panel">
+        <aside className="panel cms-content-list">
           <button onClick={() => edit(null)}>
-            New {kind === "cards" ? "card" : "page"}
+            {kind === "cards" ? "Создать карточку" : "Создать страницу"}
           </button>
-          <label style={{ marginTop: 15 }}>
-            Find content
-            <input value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <label className="cms-search-label">
+            Найти по названию
+            <input
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Начните вводить название"
+            />
           </label>
+          {!entities.length && (
+            <p className="muted">
+              Материалов пока нет. Создайте первый с помощью кнопки выше.
+            </p>
+          )}
           {entities
-            .filter((e) =>
-              e.draft.title.toLowerCase().includes(filter.toLowerCase()),
+            .filter((entity) =>
+              entity.draft.title.toLowerCase().includes(filter.toLowerCase()),
             )
             .map((entity) => (
               <button
+                type="button"
                 key={entity.id}
                 className={`entity-button ${selected?.id === entity.id ? "active" : ""}`}
                 onClick={() => edit(entity)}
               >
                 {entity.draft.title}
                 <br />
-                <span className={`badge ${entity.state}`}>{entity.state}</span>
+                <span className={`badge ${entity.state}`}>
+                  {russianName(entity.state)}
+                </span>
+                {entity.published &&
+                  JSON.stringify(entity.draft) !==
+                    JSON.stringify(entity.published) && (
+                    <small> · Есть черновик</small>
+                  )}
               </button>
             ))}
         </aside>
         <section className="panel">
           <div className="toolbar">
-            <h2>{selected ? "Edit content" : "Create draft"}</h2>
-            {selected && (
-              <span className={`badge ${selected.state}`}>
-                {selected.state} · revision {selected.version}
-              </span>
-            )}
-            {dirty && <span className="badge">Unsaved changes</span>}
+            <h2>{selected ? "Редактирование" : "Новый материал"}</h2>
+            <span className="badge" role="status">
+              {dirty
+                ? "Есть несохранённые изменения"
+                : savedDraft
+                  ? "Черновик сохранён · на сайте прежняя версия"
+                  : selected
+                    ? russianName(selected.state)
+                    : "Ещё не сохранено"}
+            </span>
           </div>
           {error && (
-            <p role="alert" className="error">
+            <p className="error" role="alert">
               {error}
             </p>
           )}
           {message && (
-            <p role="status" className="notice">
+            <p className="notice" role="status">
               {message}
             </p>
           )}
           <form
+            noValidate
             onSubmit={(e) => {
               e.preventDefault();
               void save();
             }}
           >
-            <div className="grid">
-              <Field
-                label="Title"
-                value={draft.title}
-                onChange={(title) =>
-                  update({
-                    title,
-                    ...(!selected && !slugTouched
-                      ? { slug: slugify(title) }
-                      : {}),
-                  })
-                }
-              />
-              <Field
-                label="Slug"
-                value={draft.slug}
-                onChange={(slug) => {
-                  setSlugTouched(true);
-                  update({ slug });
-                }}
-                hint={
-                  isCard
-                    ? `/topics/${draft.slug}`
-                    : draft.slug === "home"
-                      ? "/"
-                      : `/pages/${draft.slug}`
-                }
-              />
-            </div>
-            {isCard && (
-              <div className="grid">
-                <Select
-                  label="Card type"
-                  value={draft.type}
-                  options={cardTypes}
-                  onChange={(type) =>
-                    update({ type: type as CardDraft["type"] })
-                  }
-                />
-                <Select
-                  label="Card appearance"
-                  value={draft.variant}
-                  options={["default", "soft", "contrast"]}
-                  onChange={(variant) =>
-                    update({ variant: variant as CardDraft["variant"] })
-                  }
-                />
-              </div>
-            )}
-            {isCard && (
-              <div style={{ marginBottom: 15 }}>
-                <label htmlFor="card-display-order">Display order</label>
-                <input
-                  id="card-display-order"
-                  aria-describedby="card-display-order-hint"
-                  type="number"
-                  min={0}
-                  max={10000}
-                  step={1}
-                  value={draft.order ?? 0}
-                  onChange={(e) => update({ order: Number(e.target.value) })}
-                />
-                <span id="card-display-order-hint" className="muted">
-                  Lower numbers appear first. Save and publish to apply the
-                  order.
-                </span>
-              </div>
-            )}
-            {isCard && (
-              <Field
-                label="Summary"
-                value={draft.summary}
-                onChange={(summary) => update({ summary })}
-                multiline
-              />
-            )}
             <Field
-              label="Body text"
-              value={draft.body}
-              onChange={(body) => update({ body })}
-              multiline
-              hint="Plain text is rendered safely. Separate paragraphs with blank lines."
+              label="Название"
+              value={draft.title}
+              error={fieldErrors.title}
+              onChange={(title) =>
+                update({
+                  title,
+                  ...(!selected && !slugTouched
+                    ? { slug: slugify(title) || `material-${Date.now()}` }
+                    : {}),
+                })
+              }
             />
             {isCard && (
               <>
                 <div className="grid">
-                  <label>
-                    Place card in section
-                    <select
-                      value={draft.sectionId || ""}
-                      onChange={(e) => update({ sectionId: e.target.value || undefined })}
-                    >
-                      <option value="">Automatic: choose by card type</option>
-                      {homeSections.map((section) => (
-                        <option key={section.id} value={section.id}>
-                          {section.heading || section.type} ({section.type})
+                  <Select
+                    label="Тип материала"
+                    value={draft.type}
+                    options={cardTypes}
+                    onChange={(type) =>
+                      update({ type: type as CardDraft["type"] })
+                    }
+                  />
+                  <Select
+                    label="Оформление карточки"
+                    value={draft.variant}
+                    options={["default", "soft", "contrast"]}
+                    onChange={(variant) =>
+                      update({ variant: variant as CardDraft["variant"] })
+                    }
+                  />
+                </div>
+                <Field
+                  label="Краткое описание"
+                  value={draft.summary}
+                  multiline
+                  onChange={(summary) => update({ summary })}
+                />
+              </>
+            )}
+            {(isCard ||
+              (draft.slug !== "home" &&
+                !draft.sections.some(
+                  (section) => section.visible && section.type === "hero",
+                ))) && (
+              <RichTextEditor
+                key={selected?.id || "new"}
+                label="Подробное описание"
+                error={fieldErrors.bodyRichText || fieldErrors.body}
+                plainText={draft.body}
+                value={draft.bodyRichText}
+                onChange={(body, bodyRichText) =>
+                  update({ body, bodyRichText })
+                }
+              />
+            )}
+            {isCard && (
+              <>
+                <div style={{ marginBottom: 15 }}>
+                  <label htmlFor={sectionSelectId}>Раздел сайта</label>
+                  <select
+                    id={sectionSelectId}
+                    aria-describedby={`${sectionSelectId}-hint`}
+                    value={draft.sectionId || ""}
+                    onChange={(e) =>
+                      update({ sectionId: e.target.value || undefined })
+                    }
+                  >
+                    <option value="">
+                      Выбрать автоматически по типу материала
+                    </option>
+                    {homeSections.map((section) => (
+                      <option key={section.id} value={section.id}>
+                        {section.heading || russianName(section.type)}
+                      </option>
+                    ))}
+                    {draft.sectionId &&
+                      !homeSections.some(
+                        (section) => section.id === draft.sectionId,
+                      ) && (
+                        <option value={draft.sectionId}>
+                          Ранее выбранный раздел
                         </option>
-                      ))}
-                      {draft.sectionId && !homeSections.some((section) => section.id === draft.sectionId) && (
-                        <option value={draft.sectionId}>Existing section: {draft.sectionId}</option>
                       )}
-                    </select>
-                    <span className="muted">Choose where this card appears on the homepage. New sections are managed in Pages & sections.</span>
-                  </label>
-                  <label>
-                    Navigation destination (optional)
-                    <select value={draft.anchor || ""} onChange={(e) => update({ anchor: e.target.value || undefined })}>
-                      <option value="">Link to the card detail page</option>
-                      {homeSections.filter((section) => section.visible).map((section) => (
-                        <option key={section.key} value={section.key}>
-                          Jump to homepage section: {section.heading || section.key}
-                        </option>
-                      ))}
-                      {draft.anchor && !homeSections.some((section) => section.key === draft.anchor) && (
-                        <option value={draft.anchor}>Existing anchor: {draft.anchor}</option>
-                      )}
-                    </select>
-                    <span className="muted">Choose where the menu item should lead. This does not change where the card appears.</span>
-                  </label>
+                  </select>
+                  <span id={`${sectionSelectId}-hint`} className="muted">
+                    В этом разделе главной страницы появится материал.
+                  </span>
                 </div>
                 <MediaPicker
-                  label="Card images"
+                  label="Фотографии материала"
                   value={draft.mediaIds}
                   media={media}
                   multiple
                   onChange={(mediaIds) => update({ mediaIds })}
                   onUploaded={onUploaded}
-                  hint="The first image is used as the card thumbnail; all images appear in order on its detail page."
+                  hint="Первая фотография — обложка карточки. Остальные появятся на странице материала в выбранном порядке."
                 />
               </>
             )}
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={draft.showInNavigation}
-                onChange={(e) => update({ showInNavigation: e.target.checked })}
-              />
-              Add to main navigation
-            </label>
-            <div className="grid">
-              <Field
-                label="Navigation label"
-                value={draft.navigationLabel || ""}
-                onChange={(navigationLabel) => update({ navigationLabel })}
-              />
-              <Select
-                label="Navigation group"
-                value={draft.navigationGroup}
-                options={["primary", "footer"]}
-                onChange={(navigationGroup) =>
-                  update({
-                    navigationGroup: navigationGroup as "primary" | "footer",
-                  })
-                }
-              />
-            </div>
-            <SeoFields seo={draft.seo} onChange={(seo) => update({ seo })} media={media} onUploaded={onUploaded} />
             {!isCard && (
               <Sections
                 sections={draft.sections}
                 media={media}
                 onUploaded={onUploaded}
                 onChange={(sections) => update({ sections })}
+                errors={fieldErrors}
               />
             )}
-            <div className="toolbar">
+            <details className="section-box">
+              <summary>Меню сайта</summary>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={draft.showInNavigation}
+                  onChange={(e) =>
+                    update({ showInNavigation: e.target.checked })
+                  }
+                />
+                Показывать в меню
+              </label>
+              <div className="grid">
+                <Field
+                  label="Название в меню"
+                  value={draft.navigationLabel || ""}
+                  hint="Если не заполнено, используется название материала."
+                  onChange={(navigationLabel) => update({ navigationLabel })}
+                />
+                <Select
+                  label="Где показывать меню"
+                  value={draft.navigationGroup}
+                  options={["primary", "footer"]}
+                  onChange={(navigationGroup) =>
+                    update({
+                      navigationGroup: navigationGroup as "primary" | "footer",
+                    })
+                  }
+                />
+              </div>
+              {isCard && (
+                <label>
+                  Куда ведёт ссылка в меню
+                  <select
+                    value={draft.anchor || ""}
+                    onChange={(e) =>
+                      update({ anchor: e.target.value || undefined })
+                    }
+                  >
+                    <option value="">На страницу материала</option>
+                    {homeSections
+                      .filter((section) => section.visible)
+                      .map((section) => (
+                        <option key={section.key} value={section.key}>
+                          К разделу:{" "}
+                          {section.heading || russianName(section.type)}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
+            </details>
+            <SeoFields
+              seo={draft.seo}
+              onChange={(seo) => update({ seo })}
+              media={media}
+              onUploaded={onUploaded}
+            />
+            <details className="section-box">
+              <summary>Дополнительные настройки</summary>
+              <Field
+                label="Адрес страницы"
+                value={draft.slug}
+                error={fieldErrors.slug}
+                onChange={(slug) => {
+                  setSlugTouched(true);
+                  update({ slug });
+                }}
+                hint="Обычно адрес создаётся автоматически. Используйте латинские буквы, цифры и дефис."
+              />
+              {isCard && (
+                <Field
+                  label="Порядок на странице"
+                  type="number"
+                  value={String(draft.order)}
+                  onChange={(order) => update({ order: Number(order) })}
+                  hint="Меньшие числа идут первыми."
+                />
+              )}
+            </details>
+            <div className="toolbar cms-editor-actions">
               <button disabled={busy}>
-                {busy ? "Working…" : "Save draft"}
+                {busy ? "Сохраняем…" : "Сохранить изменения"}
               </button>
               <button
                 type="button"
                 className="secondary"
-                onClick={() => setPreview(!preview)}
+                disabled={busy}
+                onClick={() => void save(true)}
               >
-                {preview ? "Close preview" : "Preview draft"}
+                Предпросмотр
               </button>
               {selected && (
                 <a
@@ -381,7 +493,7 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Preview saved draft on site
+                  Открыть предпросмотр сайта
                 </a>
               )}
               <button
@@ -389,7 +501,7 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
                 disabled={busy || dirty || !selected}
                 onClick={() => void publish("publish")}
               >
-                Publish
+                Опубликовать
               </button>
               {selected?.published && (
                 <button
@@ -398,75 +510,63 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
                   disabled={busy || dirty}
                   onClick={() => void publish("unpublish")}
                 >
-                  Unpublish
+                  Снять с публикации
                 </button>
               )}
             </div>
           </form>
-          {preview && (
-            <div className="preview" aria-label="Private draft preview">
-              <span className="badge">Private draft · noindex</span>
-              <h1>{draft.title}</h1>
-              {isCard && <p>{draft.summary}</p>}
-              <p>{draft.body}</p>
-              {!isCard &&
-                draft.sections
-                  .filter((s) => s.visible)
-                  .map((section) => (
-                    <section key={section.id}>
-                      <h2>{section.heading}</h2>
-                      <p>{section.body}</p>
-                    </section>
-                  ))}
-            </div>
-          )}
           {selected && (
-            <div className="toolbar">
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() => {
-                  setSelected(null);
-                  setDraft({
-                    ...draft,
-                    title: `${draft.title} (copy)`,
-                    slug: `${draft.slug}-copy`,
-                  });
-                  setDirty(true);
-                }}
-              >
-                Duplicate as new draft
-              </button>
-              <button
-                className="danger"
-                disabled={busy}
-                onClick={async () => {
-                  if (
-                    !confirm(
-                      "Archive this content? Its public route and navigation will be removed.",
-                    )
-                  )
-                    return;
-                  setBusy(true);
-                  try {
-                    await api(`${kind}/${selected.id}`, "DELETE", {
-                      version: selected.version,
-                    });
+            <details className="section-box">
+              <summary>Копирование и удаление</summary>
+              <div className="toolbar">
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
                     setSelected(null);
-                    setDraft(kind === "cards" ? emptyCard() : emptyPage());
-                    setDirty(false);
-                    setMessage("Content archived.");
-                    await load();
-                  } catch (e) {
-                    setError(errorMessage(e));
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                Archive
-              </button>
-            </div>
+                    setDraft({
+                      ...draft,
+                      title: `${draft.title} (копия)`,
+                      slug: `${draft.slug.slice(0, 80)}-copy-${Date.now().toString(36)}`,
+                    });
+                    setDirty(true);
+                  }}
+                >
+                  Создать копию
+                </button>
+                <button
+                  type="button"
+                  className="danger"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (
+                      !confirm(
+                        "Удалить материал? Он исчезнет с сайта и из меню.",
+                      )
+                    )
+                      return;
+                    setBusy(true);
+                    try {
+                      await api(`${kind}/${selected.id}`, "DELETE", {
+                        version: selected.version,
+                      });
+                      setSelected(null);
+                      setDraft(kind === "cards" ? emptyCard() : emptyPage());
+                      setDirty(false);
+                      setMessage("Материал удалён.");
+                      await load();
+                    } catch (e) {
+                      setError(errorMessage(e));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Удалить материал
+                </button>
+              </div>
+            </details>
           )}
         </section>
       </div>
@@ -478,230 +578,330 @@ function Sections({
   media,
   onUploaded,
   onChange,
+  errors,
 }: {
   sections: Block[];
   media: MediaAsset[];
   onUploaded: (asset: MediaAsset) => void;
-  onChange: (v: Block[]) => void;
+  onChange: (sections: Block[]) => void;
+  errors: Record<string, string>;
 }) {
+  const [template, setTemplate] = useState<Block["type"]>("rich_text");
   function update(index: number, patch: Partial<Block>) {
-    onChange(sections.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+    onChange(
+      sections.map((section, i) =>
+        i === index ? { ...section, ...patch } : section,
+      ),
+    );
   }
   function move(index: number, offset: number) {
-    const list = [...sections];
-    [list[index], list[index + offset]] = [list[index + offset], list[index]];
-    onChange(list);
+    const next = [...sections];
+    [next[index], next[index + offset]] = [next[index + offset], next[index]];
+    onChange(next);
+  }
+  function add() {
+    const id = crypto.randomUUID();
+    onChange([
+      ...sections,
+      {
+        id,
+        key: `section-${id.slice(0, 8)}`,
+        type: template,
+        heading: russianName(template),
+        body:
+          template === "contact_form"
+            ? "Оставьте заявку, и мы свяжемся с вами."
+            : "",
+        visible: true,
+        variant: "default",
+        data:
+          template === "contact_form"
+            ? { submitLabel: "Отправить заявку" }
+            : {},
+      },
+    ]);
   }
   return (
-    <div>
-      <h2>Page sections</h2>
+    <div className="cms-sections">
+      <h2>Разделы страницы</h2>
       <p className="muted">
-        Order controls the published section sequence. Hidden sections and their
-        anchors are excluded.
+        Разделы расположены так же, как на сайте. Откройте раздел, чтобы
+        изменить его содержимое.
       </p>
-      {sections.map((section, index) => (
-        <details className="section-box" key={section.id}>
-          <summary>
-            {index + 1}. {section.heading || section.type}{" "}
-            {!section.visible && " · hidden"}
-          </summary>
-          <p className="muted">
-            Section ID: <code>{section.id}</code>
-          </p>
-          <div className="grid">
-            <Select
-              label="Block type"
-              value={section.type}
-              options={blockTypes}
-              onChange={(type) =>
-                update(index, { type: type as Block["type"] })
+      {sections.map((section, index) => {
+        const image = media.find(
+          (asset) =>
+            asset.id === section.imageId ||
+            (Array.isArray(section.data.mediaIds) &&
+              asset.id === section.data.mediaIds[0]),
+        );
+        return (
+          <details
+            className="section-box cms-section-card"
+            key={section.id}
+            open={
+              Object.keys(errors).some((key) =>
+                key.startsWith(`sections.${index}.`),
+              ) || undefined
+            }
+          >
+            <summary>
+              <span className="cms-section-number">{index + 1}</span>
+              {image && (
+                <Image
+                  src={image.url}
+                  alt=""
+                  width={56}
+                  height={42}
+                  unoptimized
+                />
+              )}
+              <span>
+                {section.heading || russianName(section.type)}
+                <small>
+                  {russianName(section.type)} ·{" "}
+                  {section.visible ? "Показывается" : "Скрыт"}
+                </small>
+              </span>
+            </summary>
+            <Field
+              label="Заголовок раздела"
+              value={section.heading}
+              error={errors[`sections.${index}.heading`]}
+              onChange={(heading) => update(index, { heading })}
+            />
+            <RichTextEditor
+              label="Текст раздела"
+              error={
+                errors[`sections.${index}.bodyRichText`] ||
+                errors[`sections.${index}.body`]
+              }
+              plainText={section.body}
+              value={section.bodyRichText}
+              onChange={(body, bodyRichText) =>
+                update(index, { body, bodyRichText })
               }
             />
-            <Field
-              label="Anchor key"
-              value={section.key}
-              onChange={(key) => update(index, { key })}
-            />
-          </div>
-          <Field
-            label="Section heading"
-            value={section.heading}
-            onChange={(heading) => update(index, { heading })}
-          />
-          <Field
-            label="Section body"
-            value={section.body}
-            multiline
-            onChange={(body) => update(index, { body })}
-          />
-          <Field
-            label="Eyebrow"
-            value={section.eyebrow || ""}
-            onChange={(eyebrow) => update(index, { eyebrow })}
-          />
-          <div className="grid">
+            {(section.type === "hero" ||
+              section.type === "about" ||
+              section.type === "cta") && (
+              <Field
+                label="Подпись над заголовком"
+                value={section.eyebrow || ""}
+                onChange={(eyebrow) => update(index, { eyebrow })}
+              />
+            )}
             {(section.type === "hero" || section.type === "about") && (
               <MediaPicker
-                label="Featured section image"
+                label="Главная фотография"
                 value={section.imageId ? [section.imageId] : []}
                 media={media}
                 onUploaded={onUploaded}
                 onChange={(ids) => update(index, { imageId: ids[0] })}
-                hint="Main image displayed next to the text of this section."
               />
             )}
+            {(section.type === "hero" || section.type === "cta") && (
+              <div className="grid">
+                <Field
+                  label="Текст кнопки"
+                  error={errors[`sections.${index}.data.ctaLabel`]}
+                  value={String(section.data.ctaLabel || "")}
+                  onChange={(ctaLabel) =>
+                    update(index, { data: { ...section.data, ctaLabel } })
+                  }
+                />
+                <label>
+                  Куда ведёт кнопка
+                  <select
+                    value={String(section.data.ctaUrl || "")}
+                    onChange={(e) =>
+                      update(index, {
+                        data: { ...section.data, ctaUrl: e.target.value },
+                      })
+                    }
+                  >
+                    <option value="">Не показывать кнопку</option>
+                    {sections
+                      .filter((item) => item.visible)
+                      .map((item) => (
+                        <option key={item.id} value={`/#${item.key}`}>
+                          {item.heading || russianName(item.type)}
+                        </option>
+                      ))}
+                    {section.data.ctaUrl &&
+                      !sections.some(
+                        (item) => `/#${item.key}` === section.data.ctaUrl,
+                      ) && (
+                        <option value={String(section.data.ctaUrl)}>
+                          Выбранная ссылка: {String(section.data.ctaUrl)}
+                        </option>
+                      )}
+                  </select>
+                </label>
+              </div>
+            )}
+            {section.type === "contact_form" && (
+              <ContactFields
+                section={section}
+                onChange={(data) => update(index, { data })}
+              />
+            )}
+            <MediaPicker
+              label={
+                section.type === "media_gallery"
+                  ? "Фотографии галереи"
+                  : "Фотографии раздела"
+              }
+              value={
+                Array.isArray(section.data.mediaIds)
+                  ? section.data.mediaIds
+                  : []
+              }
+              media={media}
+              multiple
+              onUploaded={onUploaded}
+              onChange={(mediaIds) =>
+                update(index, { data: { ...section.data, mediaIds } })
+              }
+              hint="Фотографии показываются в выбранном порядке. Удаление из раздела не удаляет их из библиотеки."
+            />
+            {Array.isArray(section.data.mediaIds) &&
+              section.data.mediaIds.length > 0 && (
+                <Select
+                  label="Расположение фотографий"
+                  value={String(section.data.layout || "grid")}
+                  options={["grid", "mosaic", "strip"]}
+                  onChange={(layout) =>
+                    update(index, { data: { ...section.data, layout } })
+                  }
+                />
+              )}
             <Select
-              label="Section appearance"
+              label="Оформление раздела"
               value={section.variant}
               options={["default", "soft", "contrast"]}
               onChange={(variant) =>
                 update(index, { variant: variant as Block["variant"] })
               }
             />
-          </div>
-          <MediaPicker
-            label={section.type === "media_gallery" ? "Gallery images" : "Additional section images"}
-            value={Array.isArray(section.data.mediaIds) ? section.data.mediaIds : []}
-            media={media}
-            multiple
-            onUploaded={onUploaded}
-            onChange={(mediaIds) => update(index, { data: { ...section.data, mediaIds } })}
-            hint="Select any number of images. Use arrows to change the display order. Save the page draft, preview, then publish."
-          />
-          <SectionData
-            data={section.data}
-            onChange={(data) => update(index, { data })}
-          />
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={section.visible}
-              onChange={(e) => update(index, { visible: e.target.checked })}
-            />
-            Visible on published page
-          </label>
-          <div className="toolbar">
-            <button
-              type="button"
-              className="secondary"
-              disabled={index === 0}
-              onClick={() => move(index, -1)}
-            >
-              Move up
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={index === sections.length - 1}
-              onClick={() => move(index, 1)}
-            >
-              Move down
-            </button>
-            <button
-              type="button"
-              className="danger"
-              onClick={() => {
-                if (confirm("Remove this section from the draft?"))
-                  onChange(sections.filter((_, i) => i !== index));
-              }}
-            >
-              Remove section
-            </button>
-          </div>
-        </details>
-      ))}
-      <button
-        type="button"
-        className="secondary"
-        onClick={() =>
-          onChange([
-            ...sections,
-            {
-              id: crypto.randomUUID(),
-              key: `section-${sections.length + 1}`,
-              type: "rich_text",
-              heading: "",
-              body: "",
-              visible: true,
-              variant: "default",
-              data: {},
-            },
-          ])
-        }
-      >
-        Add section
-      </button>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={section.visible}
+                onChange={(e) => update(index, { visible: e.target.checked })}
+              />
+              Показывать на сайте
+            </label>
+            <details>
+              <summary>Дополнительно</summary>
+              <Field
+                label="Адрес раздела"
+                value={section.key}
+                onChange={(key) => update(index, { key })}
+                hint="Обычно менять не нужно. Существующие ссылки используют этот адрес."
+              />
+            </details>
+            <div className="toolbar">
+              <button
+                type="button"
+                className="secondary"
+                disabled={index === 0}
+                onClick={() => move(index, -1)}
+              >
+                Выше
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={index === sections.length - 1}
+                onClick={() => move(index, 1)}
+              >
+                Ниже
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  const id = crypto.randomUUID();
+                  const next = [...sections];
+                  next.splice(index + 1, 0, {
+                    ...structuredClone(section),
+                    id,
+                    key: `section-${id.slice(0, 8)}`,
+                    heading: `${section.heading} (копия)`,
+                  });
+                  onChange(next);
+                }}
+              >
+                Создать копию раздела
+              </button>
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  if (
+                    confirm(
+                      "Удалить раздел из черновика? Фотографии останутся в библиотеке.",
+                    )
+                  )
+                    onChange(sections.filter((_, i) => i !== index));
+                }}
+              >
+                Удалить раздел
+              </button>
+            </div>
+          </details>
+        );
+      })}
+      {!sections.length && (
+        <p className="notice">
+          Пока нет разделов. Выберите подходящий шаблон ниже.
+        </p>
+      )}
+      <div className="cms-template-picker">
+        <Select
+          label="Шаблон нового раздела"
+          value={template}
+          options={blockTypes.filter((type) => type !== "footer")}
+          onChange={(type) => setTemplate(type as Block["type"])}
+        />
+        <button type="button" className="secondary" onClick={add}>
+          Добавить раздел
+        </button>
+      </div>
     </div>
   );
 }
-function SectionData({
-  data,
+function ContactFields({
+  section,
   onChange,
 }: {
-  data: Block["data"];
-  onChange: (v: Block["data"]) => void;
+  section: Block;
+  onChange: (data: Block["data"]) => void;
 }) {
-  const [key, setKey] = useState("");
+  const labels: Record<string, string> = {
+    description: "Текст рядом с контактами",
+    nameLabel: "Название поля имени",
+    phoneLabel: "Название поля телефона",
+    emailLabel: "Название поля почты",
+    messageLabel: "Название поля сообщения",
+    privacyLabel: "Текст согласия на обработку данных",
+    marketingLabel: "Текст согласия на новости",
+    submitLabel: "Текст кнопки отправки",
+    successMessage: "Сообщение после отправки",
+  };
   return (
     <details>
-      <summary>Block labels, links & additional fields</summary>
-      {Object.entries(data).filter(([name]) => name !== "mediaIds").map(([name, value]) => (
-        <label key={name}>
-          {name}
-          {typeof value === "boolean" ? (
-            <input
-              type="checkbox"
-              checked={value}
-              onChange={(e) => onChange({ ...data, [name]: e.target.checked })}
-            />
-          ) : (
-            <input
-              value={Array.isArray(value) ? value.join("\n") : String(value)}
-              onChange={(e) =>
-                onChange({
-                  ...data,
-                  [name]: Array.isArray(value)
-                    ? e.target.value.split("\n")
-                    : typeof value === "number"
-                      ? Number(e.target.value)
-                      : e.target.value,
-                })
-              }
-            />
-          )}
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              const next = { ...data };
-              delete next[name];
-              onChange(next);
-            }}
-          >
-            Remove field
-          </button>
-        </label>
-      ))}
-      <div className="toolbar">
-        <input
-          aria-label="Additional block field key"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          placeholder="e.g. submitLabel"
+      <summary>Контакты и подписи формы</summary>
+      <p className="muted">Телефон и почта берутся из «Настроек сайта».</p>
+      {Object.entries(labels).map(([key, label]) => (
+        <Field
+          key={key}
+          label={label}
+          value={String(section.data[key] || "")}
+          onChange={(value) => onChange({ ...section.data, [key]: value })}
         />
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => {
-            if (key.trim()) {
-              onChange({ ...data, [key.trim()]: "" });
-              setKey("");
-            }
-          }}
-        >
-          Add field
-        </button>
-      </div>
+      ))}
     </details>
   );
 }

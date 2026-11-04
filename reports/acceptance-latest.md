@@ -1,80 +1,95 @@
-# MVP acceptance
+# Independent Russian CMS acceptance
 
-Verdict: PASS — independent acceptance reviewer; no unresolved P0/P1.
-Date and tested revision: 2026-11-04; working tree based on `efcfd21` (application changes are uncommitted).
-Environment and address: Linux, Node 26.13.0, npm 12.2.1, Next 16.4.5 production server at http://localhost:8080. One server/port.
+Verdict: **PASS**
 
-## Implementation and file inventory
+Date: 2026-11-04.
+Tested source: `feat/russian-friendly-cms`, reviewed working changes atop `65c4a74`.
+Accepted source committed as `ac761b3`; follow-up documentation links the final
+[pull request #2](https://github.com/AlexandrShapkin/nlp-and-hypnosis-academy/pull/2).
+Reviewer: independent `acceptance_reviewer`; coordinator transcribed this report.
+Environment: production build at `http://localhost:8080`, disposable SQLite and
+uploads, random synthetic credentials. Existing local user data was not tested destructively.
 
-Three independent implementation scopes were delivered by `public_site`, `content_backend`, and `maintainer_admin`; coordinator owned shared contracts, configuration, integration and verification. The fourth spawned agent `acceptance_reviewer` remained read-only.
+## Executed verification
 
-The [66-file implementation manifest](implementation-files.txt) lists application, migration, test, script and configuration files. Architecture: one TypeScript Next App Router application, SQLite/Drizzle with journaled SQL migrations, Zod validation, server-rendered published snapshots, opaque hashed sessions, plain-text content rendering, constrained theme tokens, and dynamic validated raster delivery.
-
-## Final coordinator commands and outcomes
-
-| Command / probe | Result |
+| Check | Result |
 | --- | --- |
-| `npm ci --cache /tmp/nlp-npm-cache --no-audit --no-fund` | PASS, clean installation |
-| `npm run db:migrate` | PASS |
-| `npm run db:seed` twice | PASS, preserves existing content |
-| `npm run format:check` | PASS |
-| `npm run lint` | PASS |
-| `npm run typecheck` | PASS |
-| `npm test` | PASS, 37 tests across5 files |
-| `npm run build` | PASS, Next 16.4.5 |
-| `npm run dev` | Started8080; home200/admin307; then stopped |
-| `npm run start` | Running production8080 |
-| `npm run test:e2 e` | PASS, 5/5 in10.9 s |
-| `npm audit --omit=dev --json` | PASS, zero runtime advisories |
-| `git diff --check` | PASS |
+| Clean dependency install | PASS |
+| Isolated migrations and idempotent seed | PASS |
+| Prettier, ESLint, TypeScript, diff whitespace | PASS |
+| Unit/integration tests | 51/51 PASS, 7 files |
+| Worker security tests | 6/6 PASS |
+| Production build/server | PASS |
+| Final complete browser suite | 14/14 PASS, 36.1 seconds |
+| Runtime dependency audit | Zero vulnerabilities |
+| Existing local runtime/configuration fingerprints | 6/6 unchanged |
 
-HTTP probes confirmed `/`200, `/admin`307 to login, `/topics/osoznannoe-obuchenie`200, `/sitemap.xml`200 and local robots disallow. Browser tests cover375 px/1280 px overflow and menu use, actual UI login and card authoring/publish/rename301/unpublish404, sitemap/menu consistency, explicit consent, theme draft/publish/rollback and a newly uploaded runtime image URL200 with WebP bytes. Screenshots are generated under ignored `test-results/`.
+The reviewer independently executed 51 unit/integration tests, six worker safety
+tests and the preceding 13-test browser suite. After remediation, the reviewer
+reran the new preview regression (1/1 PASS, 6.6 seconds), final lint/typecheck/diff
+checks and separate browser/API runtime probes. The coordinator ran the complete
+final 14-test suite against the rebuilt final source.
 
-## Independently discovered blockers and remediation
+## Independent runtime evidence
 
-- Homepage rename/unpublish could break public rendering: immutable identity and removal guards, regression-tested.
-- Home section edits could orphan published card anchors: transactional publish guard and read-side filtering.
-- Published empty hero could emit an empty H1: publish-only required visible-block validation.
-- Active forms could lose their legal policy or accept an empty policy version: canonical privacy dependency guards and nonblank version schema.
-- New production uploads initially returned404: controlled dynamic raster route, HTTP tests and production browser regression.
-- Runtime dependency audit found critical/high advisories: exact patched Next 16.4.5, Drizzle0.45.4, Sharp0.35.5 and Zod4.6.7; re-audit zero.
+- Authentication, anonymous denial, CSRF and logout/session revocation passed.
+- Card draft isolation, publication, automatic navigation, SSR metadata, slug 301
+  and unpublication removal passed.
+- Unsafe rich-text links and SVG uploads were rejected; local previews stayed noindex.
+- Actual UI upload of five files, thumbnails and caption saving passed.
+- Browser Back on dirty content prompted once; dismissal preserved the URL and edits.
+- Admin widths 375, 768 and 1280 pixels showed no horizontal overflow.
+- Custom-page preview main text exactly matched the published main text. The body
+  editor remained available with other sections and a hidden hero.
+- Preview had one main landmark, no admin sidebar and the public viewport width.
+- Inquiry retention used «Хранить до» and a Russian-formatted date.
+- Real secured OpenCode catalog retrieval passed without invoking a model.
 
-Additional fixes include persisted publication dates, card display ordering, global SEO defaults, strict URL parsing, Russian public error messages, contrast checks and untrusted proxy-header handling. Vitest updated to4.1.12. No findings were silently waived.
+## Findings and resolution
 
-## Setup and operational limits
+| Severity | Finding | Resolution / evidence |
+| --- | --- | --- |
+| P1 | Custom page sections without a visible hero caused preview title/body omission and hid editable public body | Editor and preview use public composition rules; hidden-hero regression and independent text comparison PASS |
+| P2 | Admin shell created nested main landmarks and constrained preview width/styles | Standalone authenticated preview bypasses admin presentation; one-main/full-width runtime checks PASS |
+| P2 | Retention date had a generic heading/raw ISO value | Russian label/date formatting independently verified |
 
-See [README](../README.md) for setup. Copy `.env.example` privately, run migrations/seed and bootstrap the first maintainer with private email/password environment values. No default account remains from tests; generated browser/reviewer credentials are removed. Runtime SQLite, media and local environment files are ignored by Git.
+Remaining P0/P1: **none**. Remaining confirmed P2: **none**.
+Required remediation: **none**. Mandatory blocked checks: **none**.
 
-Seed copy is neutral Russian. Approved biography, qualifications, prices, testimonials, licensed media, contacts and legal review remain launch tasks, not fabricated public content. Inquiries are stored privately; no outbound email, payment or calendar integration is included. Storage assumes one node with durable SQLite/media and backups. Local indexing stays disabled. Legacy entries without a known publication timestamp omit that sitemap field until republished. Lighthouse/axe and remote CI were not executed; responsive keyboard/browser checks were executed. A forward-looking Vite configuration warning and ESLint9 deprecation notice are nonblocking tooling notices. Runtime-only audit is distinguished from a full development dependency audit.
+## Requested user journeys
 
-## Independent final review
+| Scenario | Result / evidence |
+| --- | --- |
+| 1. First login and Russian navigation | PASS — UI login, all ten destinations, reviewer |
+| 2. Homepage editing | PASS — heading/description, draft, real preview, publish |
+| 3. Five photographs | PASS — UI bulk upload independently; visual selection/order/public gallery in browser suite |
+| 4. Header/footer logo and favicon | PASS — visual selectors and public image/icon assertions |
+| 5. New service | PASS — automatic address, named section, images, menu and detail |
+| 6. Section templates/order | PASS — gallery template, section and image reordering |
+| 7. Design preview/publication | PASS — private draft, public CSS, rollback |
+| 8. Draft protection | PASS — published snapshot isolation and unsaved navigation |
+| 9. Basic SEO | PASS — title, description and social image metadata |
+| 10. Validation | PASS — Russian inline error, correction and successful save |
+| 11. Mobile usability | PASS — actual editing/save and responsive probes |
+| 12. Data preservation | PASS — compatibility/idempotence tests and unchanged local fingerprints |
+| 13. Free OpenCode implementation | User-permitted unavailability exception — catalog works, free inference failed; no model patch or savings claimed |
+| 14. External worker safety | PASS — path/secret/paid-model/disallowed-patch restrictions, real filesystem/network isolation and gateway denial |
 
-Read-only reviewer independently confirmed37 tests, lint/typecheck, runtime audit0, safe new raster delivery200 and hero image/alt publication. Homepage, required-field, privacy and anchor guards passed in an isolated fresh database. HTTP probes confirmed sitemap200 with lastmod, seeded topic200, admin307, anonymous leads401 and local robots disallow. SSR included ru language, canonical, Open Graph, noindex, one H1 and no private fields. Reviewer restored edited public content and removed its media/account; users count0.
+Acceptance cases A-001–A-012 are supported by executed tests and independent probes.
 
-Final verdict: **PASS**. No P0 findings, no unresolved P1 findings, no blocked mandatory checks. Structured reviewer report follows below.
+## OpenCode and remaining product limits
 
-### Structured independent reviewer sign-off
+OpenCode 2.2.5 preferred and fallback execution attempts did not yield code; the
+fallback explicitly returned `Free usage limit reached`. No paid provider/model
+was configured. All implementation remained with Codex. External inference and
+successful external patch integration are therefore not claimed. This matches
+the user's explicit allowance to deliver the CMS when free delegation is unavailable.
 
-**Verdict:** PASS.
+Ordering uses accessible arrow controls rather than drag-and-drop. Settings and
+menus preserve explicitly labeled immediate application; pages/cards/themes keep
+separate draft publication. The pre-existing generated `next-env.d.ts` change is
+preserved outside the feature commit.
 
-**Date/tested state:** 2026-11-04, implementation working tree based on `efcfd21`.
-
-**Environment/address:** Node 26.13.0, npm 12.2, production Next server at http://localhost:8080.
-
-**Executed independently:**37/37 tests; lint; typecheck; diff whitespace check; production dependency audit zero. Coordinator evidence accepted for clean install, migrations, repeated seed, formatting, production build/start and5/5 E2 E.
-
-**Browser/curl evidence:** Homepage/topic/sitemap200; anonymous admin login redirect and leads401; card draft/publish/nav/sitemap/rename301/unpublish; custom page publishing/navigation; theme draft isolation/publish/rollback; homepage text/image publication; immediate WebP URL200 after fresh raster upload with traversal filename randomized; script text escaped;375 px/1280 px overflow checks and keyboard mobile navigation; SSR ru language/one H1/canonical/OG/localnoindex; sitemap publication timestamps.
-
-**P0:** None unresolved.
-
-**P1:** None unresolved. Reviewer retested homepage identity, anchor dependencies, required fields, privacy dependencies, empty policy version, runtime uploads and patched dependencies.
-
-**P2/P3:** Nonblocking Node/Vite tooling notices only.
-
-**Blocked checks:** None mandatory. Optional Lighthouse/axe benchmarks were not performed; manual responsive/keyboard and automated contrast checks were performed.
-
-**Scenario checklist:** A-001 through A-012 passed.
-
-**Required remediation before MVP sign-off:** None. Production launch still requires approved content, legal review, contacts, licensed media and deployment configuration.
-
-**Independence/cleanup:** Reviewer modified no source/config/docs. Its temporary accounts/sessions/media were removed and original homepage/theme restored.
+Evidence: [implementation report](implementation-russian-cms.md),
+[changed files](implementation-files.txt), [screenshots](screenshots/).
+The independent reviewer changed no project files and implemented no production code.
