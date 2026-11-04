@@ -540,16 +540,16 @@ function Sections({
             onChange={(eyebrow) => update(index, { eyebrow })}
           />
           <div className="grid">
-            <div>
+            {(section.type === "hero" || section.type === "about") && (
               <MediaPicker
                 label="Featured section image"
                 value={section.imageId ? [section.imageId] : []}
                 media={media}
                 onUploaded={onUploaded}
                 onChange={(ids) => update(index, { imageId: ids[0] })}
-                hint="Main image for hero and about sections. Optional elsewhere."
+                hint="Main image displayed next to the text of this section."
               />
-            </div>
+            )}
             <Select
               label="Section appearance"
               value={section.variant}
