@@ -18,6 +18,7 @@ type Account = {
 type Invitation = {
   id: string;
   email: string;
+  kind: "invite" | "reset";
   expiresAt: number;
   createdAt: string;
   createdBy: string;
@@ -31,7 +32,7 @@ export function listMaintainers() {
     .all() as Account[];
   const invitations = sqlite
     .prepare(
-      "SELECT id,email,expires_at AS expiresAt,created_at AS createdAt,created_by AS createdBy FROM maintainer_invitations WHERE accepted_at IS NULL AND revoked_at IS NULL ORDER BY created_at DESC",
+      "SELECT id,email,kind,expires_at AS expiresAt,created_at AS createdAt,created_by AS createdBy FROM maintainer_invitations WHERE accepted_at IS NULL AND revoked_at IS NULL ORDER BY created_at DESC",
     )
     .all() as Invitation[];
   return { members, invitations };
@@ -62,36 +63,74 @@ export function inviteMaintainer(emailInput: string, actorId: string) {
   return { id, email, token, expiresAt };
 }
 
+export function issuePasswordReset(memberId: string, actorId: string) {
+  limit("team-reset:" + actorId, 20, 60 * 60 * 1000);
+  const member = sqlite
+    .prepare("SELECT email,role FROM users WHERE id=?")
+    .get(memberId) as { email: string; role: string } | undefined;
+  if (!member)
+    throw new ApiError(404, "NOT_FOUND", "Maintainer not found");
+  if (member.role !== "maintainer")
+    throw new ApiError(403, "OWNER_PROTECTED", "Owner password cannot be reset by another user");
+  const token = randomBytes(32).toString("hex");
+  const id = randomUUID();
+  const expiresAt = Date.now() + 48 * 60 * 60 * 1000;
+  sqlite.transaction(() => {
+    sqlite.prepare(
+      "UPDATE maintainer_invitations SET revoked_at=CURRENT_TIMESTAMP WHERE email=? AND accepted_at IS NULL AND revoked_at IS NULL",
+    ).run(member.email);
+    sqlite.prepare(
+      "INSERT INTO maintainer_invitations(id,email,kind,target_user_id,token_hash,expires_at,created_by) VALUES(?,?,'reset',?,?,?,?)",
+    ).run(id, member.email, memberId, digest(token), expiresAt, actorId);
+    audit("team.reset_link", id, actorId);
+  })();
+  return { id, email: member.email, token, expiresAt };
+}
+
 export function acceptMaintainerInvitation(
   token: string,
   password: string,
   clientKey: string,
 ) {
-  limit(`invite-accept:${clientKey}`, 20, 15 * 60 * 1000);
+  limit("invite-accept:" + clientKey, 20, 15 * 60 * 1000);
   if (!/^[a-f0-9]{64}$/.test(token))
     throw new ApiError(422, "INVALID_INVITATION", "Invitation is invalid or expired");
   return sqlite.transaction(() => {
     const invite = sqlite
       .prepare(
-        "SELECT id,email FROM maintainer_invitations WHERE token_hash=? AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>?",
+        "SELECT id,email,kind,target_user_id AS targetUserId FROM maintainer_invitations WHERE token_hash=? AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>?",
       )
-      .get(digest(token), Date.now()) as { id: string; email: string } | undefined;
+      .get(digest(token), Date.now()) as
+      | { id: string; email: string; kind: "invite" | "reset"; targetUserId: string | null }
+      | undefined;
     if (!invite)
       throw new ApiError(422, "INVALID_INVITATION", "Invitation is invalid or expired");
-    if (sqlite.prepare("SELECT id FROM users WHERE email=?").get(invite.email))
-      throw new ApiError(409, "ACCOUNT_EXISTS", "An account with this email already exists");
-    const id = randomUUID();
-    sqlite
-      .prepare(
-        "INSERT INTO users(id,email,password_hash,role,active) VALUES(?,?,?,'maintainer',1)",
-      )
-      .run(id, invite.email, hashPassword(password));
+    let id: string;
+    if (invite.kind === "reset") {
+      const existing = sqlite
+        .prepare("SELECT id FROM users WHERE id=? AND email=? AND role='maintainer'")
+        .get(invite.targetUserId, invite.email) as { id: string } | undefined;
+      if (!existing)
+        throw new ApiError(422, "INVALID_INVITATION", "Invitation is invalid or expired");
+      id = existing.id;
+      sqlite.prepare("UPDATE users SET password_hash=? WHERE id=?").run(hashPassword(password), id);
+      sqlite.prepare("DELETE FROM sessions WHERE user_id=?").run(id);
+    } else {
+      if (sqlite.prepare("SELECT id FROM users WHERE email=?").get(invite.email))
+        throw new ApiError(409, "ACCOUNT_EXISTS", "An account with this email already exists");
+      id = randomUUID();
+      sqlite
+        .prepare(
+          "INSERT INTO users(id,email,password_hash,role,active) VALUES(?,?,?,'maintainer',1)",
+        )
+        .run(id, invite.email, hashPassword(password));
+    }
     sqlite
       .prepare(
         "UPDATE maintainer_invitations SET accepted_at=CURRENT_TIMESTAMP WHERE id=? AND accepted_at IS NULL",
       )
       .run(invite.id);
-    audit("team.accept", id, id);
+    audit(invite.kind === "reset" ? "team.password_reset" : "team.accept", id, id);
     return { email: invite.email };
   })();
 }
