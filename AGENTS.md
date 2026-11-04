@@ -34,6 +34,15 @@ The coordinator owns root-level configuration, dependency decisions, shared type
 - Maintain keyboard accessibility, responsive layouts, image alt text, loading priorities, and explicit consent for forms.
 - Keep ports, commands, and paths documented. Prefer `127.0.0.1:8080` for local bind; `localhost:8080` is the browser address.
 
+## Maintainer access administration
+- Existing accounts receive the `owner` role with the additive migration; preserve credentials and sessions.
+- Only owners may access `/admin/team` or `/api/admin/team` operations.
+- New accounts are created by one-time, short-lived invitation links; no plaintext invitation secrets are persisted.
+- New `maintainer` accounts may edit site content but cannot manage accounts.
+- Disabling maintainers invalidates their sessions. Do not disable owner accounts or expose password hashes.
+- Password recovery uses owner-issued one-time links; there is no outgoing email service.
+- Test role enforcement at the API boundary, invalid/reused/revoked tokens and login revocation.
+
 ## Execution protocol
 1. Inspect repository state and existing files. Do not delete existing work.
 2. Read `PROMPT_FOR_CODEX.md`, `ROADMAP.md`, and domain docs relevant to the work.
