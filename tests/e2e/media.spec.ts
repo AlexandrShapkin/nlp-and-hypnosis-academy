@@ -37,7 +37,7 @@ test("maintainer uploads a header logo visually and publishes it through site se
     uploadedId = uploaded!.id;
 
     await page.getByRole("button", { name: "Save settings" }).click();
-    await expect(page.getByRole("status")).toContainText("Settings saved");
+    await expect(page.getByRole("status").filter({ hasText: "Settings saved" })).toBeVisible();
     await page.goto("/");
     await expect(page.locator(".public-header .public-brand img")).toHaveAttribute("src", uploaded!.url);
   } finally {
