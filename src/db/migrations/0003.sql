@@ -3,6 +3,8 @@ ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'owner' CHECK(role IN ('
 CREATE TABLE IF NOT EXISTS maintainer_invitations (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'invite' CHECK(kind IN ('invite', 'reset')),
+  target_user_id TEXT REFERENCES users(id),
   token_hash TEXT NOT NULL UNIQUE,
   expires_at INTEGER NOT NULL,
   created_by TEXT NOT NULL REFERENCES users(id),
