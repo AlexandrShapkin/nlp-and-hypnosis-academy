@@ -60,3 +60,22 @@ Local indexing is disabled by default. For deployment, use a real HTTPS `SITE_UR
 Contact submissions are retained in the private leads dashboard until a maintainer deletes them; configure and operate an appropriate retention policy before launch. The app stores inquiries and does not deliver email or integrate booking/payment services. External booking destinations are editable links.
 
 See [ROADMAP.md](ROADMAP.md), [architecture decisions](docs/DECISIONS.md), [launch checklist](docs/LAUNCH_CHECKLIST.md), and [latest independent acceptance](reports/acceptance-latest.md) for implementation status and evidence.
+
+### Isolated CMS regression checks
+
+```sh
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run test:worker
+npm run test:cms
+```
+
+`test:cms` migrates and seeds a new temporary SQLite database, creates random test
+credentials, builds the application, starts it on `http://localhost:8080`, runs
+Playwright, and removes only its own temporary database/uploads. Stop an existing
+local server first. It never resets the normal database or uploads. Use
+`node scripts/test-cms-isolated.mjs --skip-build` only after a fresh build.
+Screenshots are written to `test-results/`. Free OpenCode delegation usage and
+limitations are documented in `AGENTS.md`.

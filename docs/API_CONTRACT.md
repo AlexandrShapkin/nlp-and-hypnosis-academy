@@ -82,3 +82,18 @@ Global settings use optimistic versioned immediate publication; the settings edi
 Publication validates required visible block headings, required narrative bodies, CTA destinations/labels and contact submit labels. Incomplete hidden blocks may remain in drafts. The v1 `privacyPolicyPageId` concept is normalized to the canonical `/privacy` page: a visible published contact form requires that page to be published, and the policy cannot be renamed/removed while such forms remain public. Hide and publish affected forms before intentionally removing their policy. Privacy policy versions must be nonblank.
 
 Published public DTOs optionally include a real `publishedAt` event timestamp. Global SEO noindex applies to all public metadata and sitemap; per-entity SEO overrides global image/description defaults. Public raster delivery uses `GET /uploads/:generatedUuid.webp`, validated against media ownership records, so new uploads work without restarting Next.
+
+## Additive rich text and isolated media storage
+
+Page, card and block drafts may include optional `bodyRichText` validated by
+`src/shared/rich-text.ts`. Documents use version 1, typed paragraph/heading/list
+blocks and bounded text spans with bold/italic/validated links. Legacy `body`
+remains supported and escaped; rich documents never accept HTML or executable
+properties. Public rendering and authenticated previews use the same renderer.
+No SQL migration is needed because revisions already store validated JSON.
+
+Admin failures expose Russian messages and structured nested `fields` keys.
+Internal field identifiers remain API contracts, not editor labels. Manual menu
+links use stable entity/section targets; invalid local destinations are rejected.
+`UPLOADS_DIR` optionally overrides the default `public/uploads` storage directory
+for fully isolated browser runs, together with `DATABASE_URL`.

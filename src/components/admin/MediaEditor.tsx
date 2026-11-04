@@ -1,8 +1,8 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { MediaAsset } from "@/shared/content";
+import { useUnsavedChanges } from "./useUnsavedChanges";
 import { api } from "./api";
 import { Field, errorMessage } from "./fields";
 export function MediaEditor() {
@@ -11,7 +11,23 @@ export function MediaEditor() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
-  const visibleAssets = assets.filter((asset) => (asset.alt + " " + asset.caption + " " + asset.credit).toLowerCase().includes(query.toLowerCase()));
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+  useUnsavedChanges(dirtyIds.size > 0);
+  const onDirty = useCallback(
+    (id: string, dirty: boolean) =>
+      setDirtyIds((previous) => {
+        const next = new Set(previous);
+        if (dirty) next.add(id);
+        else next.delete(id);
+        return next;
+      }),
+    [],
+  );
+  const visibleAssets = assets.filter((asset) =>
+    (asset.alt + " " + asset.caption + " " + asset.credit)
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
   async function load() {
     const result = await api<MediaAsset[]>("media");
     setAssets(result.data);
@@ -23,18 +39,11 @@ export function MediaEditor() {
   }, []);
   return (
     <>
-      <h1>Media library</h1>
+      <h1>Фотографии и файлы</h1>
       <p className="intro">
-        Upload approved photos and illustrations here, or directly from a page,
-        card or logo editor. The same image can be reused across the site.
+        Загружайте фотографии и используйте их в любых разделах сайта. Найти и
+        выбрать изображение можно прямо во время редактирования.
       </p>
-      <div className="panel notice">
-        <h2>How to use your images</h2>
-        <p>1. Upload a JPEG, PNG or WebP image (up to 5 MB) and describe it in the alternative text field.</p>
-        <p>2. Open <Link href="/admin/pages">Pages &amp; sections</Link> to select and order images for a section, or <Link href="/admin/cards">Cards</Link> for card photos.</p>
-        <p>3. To update the website logo or browser icon, open <Link href="/admin/settings">Site settings</Link> and choose images under Brand images.</p>
-        <p>4. Save and publish content changes. Site settings apply when you save them.</p>
-      </div>
       {error && (
         <p role="alert" className="error">
           {error}
@@ -53,9 +62,25 @@ export function MediaEditor() {
           setBusy(true);
           setError("");
           try {
-            await api("media", "POST", new FormData(form));
+            const original = new FormData(form);
+            const files = original
+              .getAll("file")
+              .filter(
+                (file): file is File => file instanceof File && file.size > 0,
+              );
+            for (const [index, file] of files.entries()) {
+              const payload = new FormData();
+              payload.set("file", file);
+              payload.set(
+                "alt",
+                `${String(original.get("alt") || "").slice(0, 480)}${files.length > 1 ? ` — ${index + 1}` : ""}`,
+              );
+              payload.set("caption", String(original.get("caption") || ""));
+              payload.set("credit", String(original.get("credit") || ""));
+              await api("media", "POST", payload);
+            }
             form.reset();
-            setMessage("Image uploaded.");
+            setMessage(`Загружено фотографий: ${files.length}.`);
             await load();
           } catch (error) {
             setError(errorMessage(error));
@@ -66,32 +91,40 @@ export function MediaEditor() {
       >
         <div className="grid">
           <label>
-            Image file
+            Файл изображения
             <input
               type="file"
               name="file"
+              multiple
               accept="image/jpeg,image/png,image/webp"
               required
             />
           </label>
           <label>
-            Alternative text
+            Описание изображения
             <input name="alt" required maxLength={500} />
           </label>
           <label>
-            Caption
+            Подпись под изображением
             <input name="caption" maxLength={1000} />
           </label>
           <label>
-            Credit / license
+            Автор и права на изображение
             <input name="credit" maxLength={1000} />
           </label>
         </div>
-        <button disabled={busy}>{busy ? "Uploading…" : "Upload image"}</button>
+        <button disabled={busy}>
+          {busy ? "Загружаем…" : "Загрузить изображение"}
+        </button>
       </form>
       <label>
-        Search library ({assets.length} images)
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search image descriptions or credits" />
+        Найти фотографию (всего: {assets.length})
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Поиск по описанию, подписи или автору"
+        />
       </label>
       <div className="media-grid">
         {visibleAssets.map((asset) => (
@@ -101,11 +134,16 @@ export function MediaEditor() {
             refresh={load}
             onError={setError}
             onMessage={setMessage}
+            onDirty={onDirty}
           />
         ))}
       </div>
-      {!assets.length && <p>No media uploaded yet. Use the form above to upload your first image.</p>}
-      {assets.length > 0 && visibleAssets.length === 0 && <p>No images match that search.</p>}
+      {!assets.length && (
+        <p>Фотографий пока нет. Загрузите первую с помощью формы выше.</p>
+      )}
+      {assets.length > 0 && visibleAssets.length === 0 && (
+        <p>По вашему запросу ничего не найдено.</p>
+      )}
     </>
   );
 }
@@ -114,40 +152,51 @@ function MediaCard({
   refresh,
   onError,
   onMessage,
+  onDirty,
 }: {
   asset: MediaAsset;
   refresh: () => Promise<void>;
   onError: (s: string) => void;
   onMessage: (s: string) => void;
+  onDirty: (id: string, dirty: boolean) => void;
 }) {
   const [draft, setDraft] = useState(asset);
   const [busy, setBusy] = useState(false);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(asset);
+  useEffect(() => {
+    onDirty(asset.id, dirty);
+  }, [asset.id, dirty, onDirty]);
   return (
     <article className="panel">
-      <Image
-        unoptimized
-        src={asset.url}
-        alt={asset.alt}
-        width={asset.width}
-        height={asset.height}
-      />
+      <a
+        href={asset.url}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Увеличить: ${asset.alt}`}
+      >
+        <Image
+          unoptimized
+          src={asset.url}
+          alt={asset.alt}
+          width={asset.width}
+          height={asset.height}
+        />
+      </a>
       <p className="muted">
-        <code>{asset.id}</code>
-        <br />
-        {asset.width} × {asset.height}
+        WebP · {asset.width} × {asset.height} пикселей
       </p>
       <Field
-        label="Alternative text"
+        label="Описание изображения"
         value={draft.alt}
         onChange={(alt) => setDraft({ ...draft, alt })}
       />
       <Field
-        label="Caption"
+        label="Подпись под изображением"
         value={draft.caption || ""}
         onChange={(caption) => setDraft({ ...draft, caption })}
       />
       <Field
-        label="Credit"
+        label="Автор"
         value={draft.credit || ""}
         onChange={(credit) => setDraft({ ...draft, credit })}
       />
@@ -163,7 +212,7 @@ function MediaCard({
                 caption: draft.caption,
                 credit: draft.credit,
               });
-              onMessage("Media details saved.");
+              onMessage("Описание фотографии сохранено.");
               await refresh();
             } catch (error) {
               onError(errorMessage(error));
@@ -172,7 +221,7 @@ function MediaCard({
             }
           }}
         >
-          Save details
+          {busy ? "Сохраняем…" : "Сохранить описание"}
         </button>
         <button
           className="danger"
@@ -180,7 +229,7 @@ function MediaCard({
           onClick={async () => {
             if (
               !confirm(
-                "Delete this image? The server will reject deletion while it is referenced by content.",
+                "Удалить изображение из библиотеки? Если оно используется на сайте или в черновике, удалить его не получится.",
               )
             )
               return;
@@ -188,7 +237,7 @@ function MediaCard({
             onError("");
             try {
               await api(`media/${asset.id}`, "DELETE");
-              onMessage("Media deleted.");
+              onMessage("Изображение удалено.");
               await refresh();
             } catch (error) {
               onError(errorMessage(error));
@@ -197,7 +246,7 @@ function MediaCard({
             }
           }}
         >
-          Delete image
+          Удалить изображение
         </button>
       </div>
     </article>

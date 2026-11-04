@@ -48,3 +48,21 @@ A production probe also showed that Next's startup public-file inventory did not
 Draft content can be incomplete. Publishing visible blocks validates headings and required bodies/actions. Canonical `/privacy` is the normalized v1 contact-policy reference; public forms require it, and dependent policy removal/rename is blocked until forms are hidden and published. This prevents empty H1 output and broken consent links. Shared settings require a nonblank policy version. Global SEO noindex and image/description defaults now participate in metadata and sitemap generation.
 
 Vitest was updated to 4.1.12 after the development dependency audit. ESLint 9.39.5 is retained for compatibility with the Next configuration's import/react/accessibility plugin peer ranges; ESLint 10 was tested but produced unsupported peer warnings. Runtime dependency audit is the production acceptance gate; no unsupported dependency downgrade is applied automatically.
+
+## 2026-11-04 — Russian CMS redesign and isolated free delegation
+
+- Preserve the media/branding baseline and all existing runtime data; changes are on `feat/russian-friendly-cms`.
+- Add optional validated rich-text documents alongside legacy plain text, without a database migration.
+- Keep explicit page/card/theme draft publication and optimistic versions.
+- External free-model work is review-only: explicit source allowlist, filesystem isolation, clean environment, no private configuration, scoped patch validation. Only two user-approved free model IDs are enabled.
+- OpenCode 2.2.5 supports `--standalone` and `run --model`; standalone avoids the occupied managed-service port. Catalog retrieval worked; implementation requests did not. Fallback explicitly reported free usage limit reached. No paid provider was configured.
+
+### Acceptance corrections
+
+Independent review found that custom pages with sections but no visible hero
+lost their title/body in preview and their body control in the editor. Preview
+composition and editor visibility now follow public rendering, including hidden
+heroes. Preview routes bypass the admin shell and inherited CMS styling while
+retaining server authentication and noindex, giving one main landmark and the
+actual public viewport. Inquiry retention labels/dates use Russian formatting.
+A browser regression and independent runtime re-review verify these corrections.

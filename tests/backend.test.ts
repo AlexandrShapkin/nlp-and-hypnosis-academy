@@ -70,6 +70,124 @@ describe("SQLite content lifecycle", () => {
       false,
     );
   });
+  it("keeps rich text and ordered galleries isolated until explicit publication", () => {
+    for (const id of ["gallery-one", "gallery-two"]) {
+      sqlite
+        .prepare("INSERT INTO media(id,payload,stored_key) VALUES(?,?,?)")
+        .run(
+          id,
+          JSON.stringify({
+            id,
+            url: `/uploads/${id}.webp`,
+            alt: "Описание",
+            caption: "",
+            credit: "",
+            width: 2,
+            height: 2,
+          }),
+          `${id}.webp`,
+        );
+    }
+    const doc = {
+      version: 1,
+      blocks: [
+        { type: "paragraph", children: [{ text: "Содержимое", bold: true }] },
+      ],
+    };
+    let page = store.saveEntity("page", {
+      slug: "rich-gallery",
+      title: "Фотографии",
+      sections: [
+        {
+          id: "rich-gallery",
+          key: "gallery",
+          type: "rich_text",
+          heading: "Описание",
+          bodyRichText: doc,
+          data: { mediaIds: ["gallery-two", "gallery-one"] },
+        },
+      ],
+    });
+    page = store.publishEntity("page", page.id, page.version);
+    expect(
+      (page.published as import("../src/shared/content").PageDraft).sections[0]
+        .data.mediaIds,
+    ).toEqual(["gallery-two", "gallery-one"]);
+    const next = {
+      ...page.draft,
+      sections: [
+        {
+          id: "rich-gallery",
+          key: "gallery",
+          type: "rich_text",
+          heading: "Изменено",
+          bodyRichText: doc,
+          data: { mediaIds: ["gallery-one", "gallery-two"] },
+        },
+      ],
+    };
+    page = store.saveEntity("page", next, page.id, page.version);
+    expect(
+      (page.published as import("../src/shared/content").PageDraft).sections[0]
+        .heading,
+    ).toBe("Описание");
+    expect(
+      (page.published as import("../src/shared/content").PageDraft).sections[0]
+        .data.mediaIds,
+    ).toEqual(["gallery-two", "gallery-one"]);
+    page = store.saveEntity(
+      "page",
+      {
+        ...next,
+        sections: [
+          { ...next.sections[0], data: { mediaIds: ["missing-media"] } },
+        ],
+      },
+      page.id,
+      page.version,
+    );
+    expect(() => store.publishEntity("page", page.id, page.version)).toThrow(
+      "All referenced images",
+    );
+    expect(
+      (
+        store.getEntity("page", page.id)
+          .published as import("../src/shared/content").PageDraft
+      ).sections[0].heading,
+    ).toBe("Описание");
+  });
+  it("resolves navigation by displayed internal targets and rejects broken routes", () => {
+    const page = store
+      .publishedEntities("page")
+      .find((p) => p.slug === "home")!;
+    const base = {
+      id: "nav-target",
+      label: "Главная",
+      href: "/old-path",
+      group: "primary" as const,
+      order: 0,
+      visible: true,
+    };
+    expect(
+      store.validateNavigationItem({
+        ...base,
+        target: { kind: "page", id: page.id },
+      }).href,
+    ).toBe("/");
+    for (const href of [
+      "/does-not-exist",
+      "/#missing-section",
+      "/admin",
+      "/topics/unpublished",
+    ])
+      expect(() => store.validateNavigationItem({ ...base, href })).toThrow(
+        "Navigation requires published content",
+      );
+    expect(
+      store.validateNavigationItem({ ...base, href: "https://example.test" })
+        .href,
+    ).toBe("https://example.test");
+  });
   it("publication timestamps change only on successful publication", async () => {
     const { migrate } = await import("../src/db");
     migrate();

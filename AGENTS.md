@@ -45,3 +45,41 @@ The coordinator owns root-level configuration, dependency decisions, shared type
 8. Update `ROADMAP.md`, `docs/DECISIONS.md` and `reports/acceptance-latest.md` with truthful status.
 
 Do not state that any feature is implemented without runnable evidence. Avoid direct pushes, destructive Git operations, or modifying live external systems without explicit user instruction. Prefer documented assumptions over blocking on non-critical product copy.
+
+## Free OpenCode delegation
+
+The coordinator may delegate isolated public-source translations, styles and simple components using:
+
+```sh
+scripts/opencode-free-task.sh --task 'Translate these labels into Russian' \
+  --model opencode/glm-5.3-flash-free --allow src/components/example.tsx \
+  --output /tmp/review-task.patch
+```
+
+Repeat `--allow` for each existing public source file. Only the preferred model and
+`opencode/deepseek-v4.1-flash-free` fallback are approved; never select a paid model.
+The wrapper checks `opencode --standalone models`, copies only allowed context,
+uses Bubblewrap with no original checkout/home/config/environment access, and
+returns a patch without applying it. The worker's Git metadata is read-only.
+No secrets, authentication modules, inquiries, runtime databases or uploads may
+be delegated. Review the task text for private data too. Public model requests
+require networking; no credentials or paid-provider configuration are supplied.
+Missing Bubblewrap or catalog/model failures stop delegation without an unsafe
+fallback. Review `git apply --check /tmp/review-task.patch`, inspect the patch,
+apply it only after review, and run relevant checks. Coordinate file ownership;
+never overlap a worker's files with another implementation agent.
+
+At most one justified retry; otherwise implement through Codex. Catalog presence
+alone does not prove usable free quota. November 2026 verification found the free
+catalog available but execution unavailable (fallback: free usage limit reached).
+No successful external implementation or cost savings are claimed.
+
+Wrapper safety checks: `python3 -m unittest discover -s tests -p 'opencode_wrapper_test.py'`.
+
+Worker networking uses a separate namespace plus a narrow HTTPS CONNECT gateway
+allowing only public `opencode.ai`, `api.opencode.ai` and `models.dev` on port 443.
+Localhost, LAN, cloud metadata and other hosts are denied. The original checkout
+and home are not mounted. `--check-only` verifies real isolated catalog access
+without model execution. Free quota failures must never trigger provider/billing
+configuration. Reusable source scanning is an extra check, not a substitute for
+reviewing whether both allowed files and task text are public.

@@ -1,15 +1,8 @@
+import { loginAsMaintainer } from "./login";
 import { test, expect, type Page } from "@playwright/test";
 const origin = "http://localhost:8080";
 async function login(page: Page) {
-  await page.goto("/admin/login");
-  await page
-    .getByLabel("Email", { exact: true })
-    .fill(process.env.TEST_ADMIN_EMAIL!);
-  await page
-    .getByLabel("Password", { exact: true })
-    .fill(process.env.TEST_ADMIN_PASSWORD!);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin$/);
+  await loginAsMaintainer(page);
 }
 test("SSR, private routes, SEO and responsive navigation", async ({
   page,
@@ -69,29 +62,35 @@ test("maintainer creates, previews, publishes, renames and unpublishes a card", 
   await page.goto("/admin/cards");
   const slug = `browser-topic-${Date.now()}`;
   const title = "Проверка публикации браузером";
-  await page.getByRole("button", { name: "New card", exact: true }).click();
-  await page.getByLabel("Title", { exact: true }).fill(title);
-  await page.getByLabel("Slug", { exact: true }).fill(slug);
   await page
-    .getByLabel("Body text", { exact: true })
+    .getByRole("button", { name: "Создать карточку", exact: true })
+    .click();
+  await page.getByLabel("Название", { exact: true }).fill(title);
+  await page.getByText("Дополнительные настройки", { exact: true }).click();
+  await page.getByLabel("Адрес страницы", { exact: true }).fill(slug);
+  await page
+    .getByLabel("Подробное описание", { exact: true })
     .fill("Оригинальный текст для проверки редактора.");
   await expect(
-    page.getByLabel("Add to main navigation", { exact: true }),
+    page.getByLabel("Показывать в меню", { exact: true }),
   ).toBeChecked();
-  await page.getByRole("button", { name: "Save draft", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Draft saved");
+  await page
+    .getByRole("button", { name: "Сохранить изменения", exact: true })
+    .click();
+  await expect(page.locator(".notice[role=status]")).toContainText("сохранены");
   expect((await request.get(`/topics/${slug}`)).status()).toBe(404);
   expect(await (await request.get("/sitemap.xml")).text()).not.toContain(
     `/topics/${slug}`,
   );
-  await page
-    .getByRole("button", { name: "Preview draft", exact: true })
-    .click();
-  await expect(page.getByLabel("Private draft preview")).toContainText(title);
+  const previewPromise = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Предпросмотр", exact: true }).click();
+  const preview = await previewPromise;
+  await expect(preview.getByRole("heading", { level: 1 })).toHaveText(title);
+  await preview.close();
   page.on("dialog", (d) => d.accept());
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "Published successfully",
+  await page.getByRole("button", { name: "Опубликовать", exact: true }).click();
+  await expect(page.locator(".notice[role=status]")).toContainText(
+    "Опубликовано",
   );
   expect((await request.get(`/topics/${slug}`)).status()).toBe(200);
   expect(await (await request.get("/")).text()).toContain(`/topics/${slug}`);
@@ -99,18 +98,24 @@ test("maintainer creates, previews, publishes, renames and unpublishes a card", 
     `/topics/${slug}`,
   );
   const renamed = `${slug}-renamed`;
-  await page.getByLabel("Slug", { exact: true }).fill(renamed);
-  await page.getByRole("button", { name: "Save draft", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Draft saved");
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "Published successfully",
+  await page.getByLabel("Адрес страницы", { exact: true }).fill(renamed);
+  await page
+    .getByRole("button", { name: "Сохранить изменения", exact: true })
+    .click();
+  await expect(page.locator(".notice[role=status]")).toContainText("сохранены");
+  await page.getByRole("button", { name: "Опубликовать", exact: true }).click();
+  await expect(page.locator(".notice[role=status]")).toContainText(
+    "Опубликовано",
   );
   const alias = await request.get(`/topics/${slug}`, { maxRedirects: 0 });
   expect(alias.status()).toBe(301);
   expect(alias.headers().location).toContain(`/topics/${renamed}`);
-  await page.getByRole("button", { name: "Unpublish", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("unpublished");
+  await page
+    .getByRole("button", { name: "Снять с публикации", exact: true })
+    .click();
+  await expect(page.locator(".notice[role=status]")).toContainText(
+    "снят с публикации",
+  );
   expect((await request.get(`/topics/${renamed}`)).status()).toBe(404);
   expect(await (await request.get("/")).text()).not.toContain(
     `/topics/${renamed}`,
@@ -153,34 +158,41 @@ test("theme draft, publication and rollback change public CSS only explicitly", 
   await login(page);
   await page.goto("/admin/theme");
   await expect(
-    page.getByLabel("primary hex color", { exact: true }),
+    page.getByLabel("Основной цвет: код цвета", { exact: true }),
   ).toBeVisible();
   const oldColor = await page
-    .getByLabel("primary hex color", { exact: true })
+    .getByLabel("Основной цвет: код цвета", { exact: true })
     .inputValue();
   const newColor = oldColor === "#304e7a" ? "#285044" : "#304e7a";
   page.on("dialog", (d) => d.accept());
-  await page.getByLabel("primary hex color", { exact: true }).fill(newColor);
   await page
-    .getByRole("button", { name: "Save theme draft", exact: true })
+    .getByLabel("Основной цвет: код цвета", { exact: true })
+    .fill(newColor);
+  await page
+    .getByRole("button", { name: "Сохранить оформление", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Theme draft saved");
+  await expect(page.locator(".notice[role=status]")).toContainText(
+    "сохранено в черновик",
+  );
   expect(await (await request.get("/")).text()).toContain(
     `--color-primary:${oldColor}`,
   );
+  await page.screenshot({ path: "test-results/cms-theme.png", fullPage: true });
   await page
-    .getByRole("button", { name: "Publish theme", exact: true })
+    .getByRole("button", { name: "Опубликовать оформление", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Theme published");
+  await expect(page.locator(".notice[role=status]")).toContainText(
+    "Оформление опубликовано",
+  );
   expect(await (await request.get("/")).text()).toContain(
     `--color-primary:${newColor}`,
   );
   await page
-    .getByRole("button", { name: "Restore version", exact: true })
+    .getByRole("button", { name: "Восстановить эту версию", exact: true })
     .nth(1)
     .click();
-  await expect(page.getByRole("status")).toContainText(
-    "Previous theme restored",
+  await expect(page.locator(".notice[role=status]")).toContainText(
+    "Прежнее оформление восстановлено",
   );
   expect(await (await request.get("/")).text()).toContain(
     `--color-primary:${oldColor}`,

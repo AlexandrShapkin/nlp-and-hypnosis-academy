@@ -1,46 +1,68 @@
 "use client";
 import { useEffect, useState } from "react";
-import { settingsSchema, type Settings, type MediaAsset } from "@/shared/content";
+import {
+  settingsSchema,
+  type Settings,
+  type MediaAsset,
+} from "@/shared/content";
+import Image from "next/image";
+import { useUnsavedChanges } from "./useUnsavedChanges";
 import { MediaPicker } from "./MediaPicker";
 import { api } from "./api";
 import { Field, SeoFields, errorMessage } from "./fields";
-type TextSetting = Exclude<keyof Settings, "seo" | "logoImageId" | "footerLogoImageId" | "faviconImageId">;
+type TextSetting = Exclude<
+  keyof Settings,
+  "seo" | "logoImageId" | "footerLogoImageId" | "faviconImageId"
+>;
 const labels: Record<TextSetting, string> = {
-  siteTitle: "Site title",
-  description: "Site description",
-  brandLabel: "Header brand label",
-  phone: "Contact phone",
-  email: "Contact email",
-  bookingLabel: "Booking button label",
-  bookingUrl: "Booking destination",
-  footerText: "Footer text",
-  legalText: "Legal identity & disclosures",
-  privacyVersion: "Privacy policy version",
-  socialUrl: "Social link",
+  siteTitle: "Название сайта",
+  description: "Описание сайта",
+  brandLabel: "Подпись рядом с логотипом",
+  phone: "Телефон",
+  email: "Электронная почта для связи",
+  bookingLabel: "Текст кнопки записи",
+  bookingUrl: "Куда ведёт кнопка записи",
+  footerText: "Текст внизу сайта",
+  legalText: "Юридическая информация",
+  privacyVersion: "Версия согласия на обработку данных",
+  socialUrl: "Ссылка на социальную сеть",
 };
 export function SettingsEditor() {
   const [draft, setDraft] = useState<Settings | null>(null);
+  const [baseline, setBaseline] = useState("");
   const [version, setVersion] = useState(0);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [media, setMedia] = useState<MediaAsset[]>([]);
-  const onUploaded = (asset: MediaAsset) => setMedia((items) => [...items, asset]);
+  const onUploaded = (asset: MediaAsset) =>
+    setMedia((items) => [...items, asset]);
+  const dirty =
+    draft !== null && baseline !== "" && JSON.stringify(draft) !== baseline;
+  useUnsavedChanges(dirty);
+  const loaded = draft !== null;
   useEffect(() => {
-    void api<MediaAsset[]>("media").then((r) => setMedia(r.data)).catch((e) => setError(errorMessage(e)));
+    if (loaded && window.location.hash === "#branding")
+      document.getElementById("branding")?.scrollIntoView();
+  }, [loaded]);
+  useEffect(() => {
+    void api<MediaAsset[]>("media")
+      .then((r) => setMedia(r.data))
+      .catch((e) => setError(errorMessage(e)));
     void api<Settings>("settings")
       .then((r) => {
         setDraft(r.data);
+        setBaseline(JSON.stringify(r.data));
         setVersion(r.version ?? 1);
       })
       .catch((e) => setError(errorMessage(e)));
   }, []);
   return (
     <>
-      <h1>Site settings</h1>
+      <h1>Настройки сайта</h1>
       <p className="intro">
-        Global brand, contact, legal, booking, and search defaults. Saving
-        settings applies these values to the public site.
+        Название, логотипы, контакты и общие настройки. Сохранение сразу
+        применяет изменения на сайте.
       </p>
       {error && (
         <p role="alert" className="error">
@@ -67,8 +89,9 @@ export function SettingsEditor() {
                 ...validated,
               });
               setDraft(result.data);
+              setBaseline(JSON.stringify(result.data));
               setVersion(result.version ?? version + 1);
-              setMessage("Settings saved.");
+              setMessage("Настройки сохранены и применены на сайте.");
             } catch (error) {
               setError(errorMessage(error));
             } finally {
@@ -76,61 +99,145 @@ export function SettingsEditor() {
             }
           }}
         >
+          <h2>Название и описание</h2>
           <div className="grid">
-            {Object.entries(labels).map(([key, label]) => (
-              <Field
-                key={key}
-                label={label}
-                value={draft[key as TextSetting]}
-                multiline={["description", "footerText", "legalText"].includes(
-                  key,
-                )}
-                onChange={(value) => setDraft({ ...draft, [key]: value })}
-              />
-            ))}
+            {Object.entries(labels)
+              .filter(([key]) =>
+                ["siteTitle", "brandLabel", "description"].includes(key),
+              )
+              .map(([key, label]) => (
+                <Field
+                  key={key}
+                  label={label}
+                  value={draft[key as TextSetting]}
+                  multiline={[
+                    "description",
+                    "footerText",
+                    "legalText",
+                  ].includes(key)}
+                  onChange={(value) => setDraft({ ...draft, [key]: value })}
+                />
+              ))}
           </div>
-          <div className="cms-brand-settings">
-            <h2>Brand images</h2>
-            <p className="muted">Choose brand images from the library or upload them here. The header and footer can use different versions for light and dark backgrounds. Text branding remains a fallback.</p>
+          <div id="branding" className="cms-brand-settings">
+            <h2>Логотипы и иконка сайта</h2>
+            <div className="cms-brand-previews">
+              {[
+                [draft.logoImageId, "Шапка сайта"],
+                [draft.footerLogoImageId, "Подвал сайта"],
+              ].map(([id, label], i) => {
+                const asset = media.find((item) => item.id === id);
+                return (
+                  <div
+                    className={`cms-brand-preview ${i === 1 ? "dark" : ""}`}
+                    key={label}
+                  >
+                    <small>{label}</small>
+                    {asset ? (
+                      <Image
+                        src={asset.url}
+                        alt={asset.alt}
+                        width={200}
+                        height={90}
+                        unoptimized
+                      />
+                    ) : (
+                      <strong>{draft.brandLabel || draft.siteTitle}</strong>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="muted">
+              Выберите изображения из библиотеки или загрузите новые. Если
+              логотип не выбран, на сайте останется текстовое название.
+            </p>
             <MediaPicker
-              label="Header logo"
+              label="Логотип в шапке сайта"
               value={draft.logoImageId ? [draft.logoImageId] : []}
               media={media}
               onUploaded={onUploaded}
               onChange={(ids) => setDraft({ ...draft, logoImageId: ids[0] })}
-              hint="Recommended: horizontal logo or transparent symbol with good contrast on light backgrounds."
+              hint="Лучше всего подходит горизонтальный логотип, хорошо заметный на светлом фоне."
             />
             <MediaPicker
-              label="Footer logo"
+              label="Логотип в подвале сайта"
               value={draft.footerLogoImageId ? [draft.footerLogoImageId] : []}
               media={media}
               onUploaded={onUploaded}
-              onChange={(ids) => setDraft({ ...draft, footerLogoImageId: ids[0] })}
-              hint="Optional alternative for the dark footer. If empty, the original brand symbol remains."
+              onChange={(ids) =>
+                setDraft({ ...draft, footerLogoImageId: ids[0] })
+              }
+              hint="Можно выбрать отдельный логотип для тёмного фона. Без изображения останется текстовое название."
             />
             <MediaPicker
-              label="Browser tab icon (favicon)"
+              label="Иконка сайта"
               value={draft.faviconImageId ? [draft.faviconImageId] : []}
               media={media}
               onUploaded={onUploaded}
               onChange={(ids) => setDraft({ ...draft, faviconImageId: ids[0] })}
-              hint="Square image recommended. The app serves uploaded images as optimized WebP."
+              hint="Небольшое квадратное изображение для вкладки браузера."
             />
           </div>
+          <h2>Контакты и запись</h2>
+          <div className="grid">
+            {Object.entries(labels)
+              .filter(([key]) =>
+                [
+                  "phone",
+                  "email",
+                  "bookingLabel",
+                  "bookingUrl",
+                  "socialUrl",
+                ].includes(key),
+              )
+              .map(([key, label]) => (
+                <Field
+                  key={key}
+                  label={label}
+                  value={draft[key as TextSetting]}
+                  onChange={(value) => setDraft({ ...draft, [key]: value })}
+                />
+              ))}
+          </div>
+          <details className="section-box">
+            <summary>Текст внизу сайта и юридическая информация</summary>
+            {Object.entries(labels)
+              .filter(([key]) =>
+                ["footerText", "legalText", "privacyVersion"].includes(key),
+              )
+              .map(([key, label]) => (
+                <Field
+                  key={key}
+                  label={label}
+                  value={draft[key as TextSetting]}
+                  multiline={key !== "privacyVersion"}
+                  onChange={(value) => setDraft({ ...draft, [key]: value })}
+                />
+              ))}
+          </details>
           <SeoFields
             seo={draft.seo}
             onChange={(seo) => setDraft({ ...draft, seo })}
             media={media}
             onUploaded={onUploaded}
           />
-          <button disabled={busy}>{busy ? "Saving…" : "Save settings"}</button>
+          {dirty && (
+            <p className="badge" role="status">
+              Есть несохранённые изменения
+            </p>
+          )}
+          <button disabled={busy}>
+            {busy ? "Сохраняем…" : "Сохранить и применить настройки"}
+          </button>
           <p className="muted">
-            Edit privacy and terms content in Pages & sections. Increment the
-            privacy policy version when consent language changes.
+            Тексты политики конфиденциальности и условий использования находятся
+            в «Страницах сайта». При изменении текста согласия обновите его
+            версию.
           </p>
         </form>
       ) : (
-        <p>Loading settings…</p>
+        <p>Загружаем настройки…</p>
       )}
     </>
   );

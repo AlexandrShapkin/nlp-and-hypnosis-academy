@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { richTextSchema } from "./rich-text";
 export const seoSchema = z.object({
   title: z.string().max(160).optional(),
   description: z.string().max(320).optional(),
@@ -59,6 +60,7 @@ export const blockSchema = z.object({
   type: z.enum(blockTypes),
   heading: z.string().max(300).default(""),
   body: z.string().max(20000).default(""),
+  bodyRichText: richTextSchema.optional(),
   eyebrow: z.string().max(200).optional(),
   imageId: z.string().optional(),
   visible: z.boolean().default(true),
@@ -77,6 +79,7 @@ export const cardSchema = z.object({
   title: z.string().trim().min(1).max(300),
   summary: z.string().max(2000).default(""),
   body: z.string().max(50000).default(""),
+  bodyRichText: richTextSchema.optional(),
   mediaIds: z.array(z.string()).default([]),
   sectionId: z.string().optional(),
   showInNavigation: z.boolean().default(true),
@@ -90,6 +93,7 @@ export const pageSchema = z.object({
   slug: slugSchema,
   title: z.string().trim().min(1).max(300),
   body: z.string().max(50000).default(""),
+  bodyRichText: richTextSchema.optional(),
   sections: z.array(blockSchema).default([]),
   showInNavigation: z.boolean().default(false),
   navigationLabel: z.string().max(100).optional(),

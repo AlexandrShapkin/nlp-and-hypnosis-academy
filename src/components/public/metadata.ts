@@ -29,7 +29,9 @@ export function publicMetadata(
   return {
     title: resolvedTitle,
     description: resolvedDescription,
-    ...(favicon ? { icons: { icon: [{ url: favicon.url, type: "image/webp" }] } } : {}),
+    ...(favicon
+      ? { icons: { icon: [{ url: favicon.url, type: "image/webp" }] } }
+      : {}),
     alternates: { canonical },
     robots: { index, follow: index },
     openGraph: {

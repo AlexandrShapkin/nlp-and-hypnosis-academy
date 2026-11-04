@@ -5,31 +5,32 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { api } from "./api";
 const links = [
-  ["", "Overview"],
-  ["cards", "Cards & reusable content"],
-  ["pages", "Pages & sections"],
-  ["navigation", "Navigation"],
-  ["media", "Media library"],
-  ["theme", "Design & theme"],
-  ["seo", "SEO & redirects"],
-  ["settings", "Site settings"],
-  ["leads", "Inquiries"],
-  ["audit", "Audit history"],
+  ["", "Главная"],
+  ["pages", "Страницы сайта"],
+  ["cards", "Карточки и материалы"],
+  ["media", "Фотографии и файлы"],
+  ["navigation", "Меню сайта"],
+  ["theme", "Оформление"],
+  ["settings", "Настройки сайта"],
+  ["leads", "Заявки"],
+  ["seo", "Поисковая оптимизация"],
+  ["audit", "История изменений"],
 ];
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [error, setError] = useState("");
+  if (pathname.startsWith("/admin/preview/")) return <>{children}</>;
   return (
     <div className="cms-shell">
       <a className="cms-skip" href="#cms-main">
-        Skip to editor
+        Перейти к редактору
       </a>
       <aside className="cms-sidebar">
         <Link className="cms-brand" href="/admin">
-          ACADEMY<span>Maintainer workspace</span>
+          АКАДЕМИЯ<span>Управление сайтом</span>
         </Link>
-        <nav aria-label="Administration">
+        <nav aria-label="Управление сайтом">
           {links.map(([path, label]) => (
             <Link
               key={path}
@@ -45,11 +46,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <a href="/" target="_blank" rel="noreferrer">
-          View public site ↗
+          Посмотреть сайт ↗
         </a>
         <button
           className="secondary"
           onClick={async () => {
+            if (
+              !window.dispatchEvent(
+                new Event("cms:before-logout", { cancelable: true }),
+              )
+            )
+              return;
             try {
               await api("auth/logout", "POST", {});
               router.push("/admin/login");
@@ -59,7 +66,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             }
           }}
         >
-          Sign out
+          Выйти
         </button>
         {error && <p role="alert">{error}</p>}
       </aside>
