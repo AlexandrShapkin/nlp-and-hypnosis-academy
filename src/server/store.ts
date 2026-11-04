@@ -459,6 +459,11 @@ export function getSettings() {
 }
 export function saveSettings(input: unknown, version: number, actor?: string) {
   const s = settingsSchema.parse(input);
+  const available = new Set(getMediaList().map((m) => m.id));
+  for (const id of [s.logoImageId, s.footerLogoImageId, s.faviconImageId, s.seo.ogImageId]) {
+    if (id && !available.has(id))
+      throw new ApiError(422, "INVALID_MEDIA", "Choose an existing image from the media library");
+  }
   return sqlite.transaction(() => {
     if (getSettings().version !== version) throw conflict();
     sqlite
