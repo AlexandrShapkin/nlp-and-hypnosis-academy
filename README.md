@@ -36,6 +36,10 @@ Visit `/admin/login`, then review the onboarding checklist. Seed is idempotent a
 
 Install a browser with `npx playwright install chromium` if needed. Browser checks bootstrap a random temporary maintainer when the database has no users and remove that account afterward. For an existing maintainer, supply private `TEST_ADMIN_EMAIL` and `TEST_ADMIN_PASSWORD` environment variables; see `tests/e2e`. Do not run editorial mutation tests against production data.
 
+## Editing images, galleries and branding
+
+The maintainer CMS provides visual image selection and inline uploads for page sections, cards, SEO and brand identity. Open `/admin/media` to maintain the image library; use `/admin/pages` to attach and order multiple images in any section, and `/admin/settings` to set header/footer logos and a browser icon. Existing SQLite settings remain valid; no destructive migration is needed. See [the maintainer media guide](docs/MEDIA_EDITOR_GUIDE.md).
+
 ## Architecture
 
 - `src/shared`: versioned Zod content/theme schemas and canonical URL helpers.
