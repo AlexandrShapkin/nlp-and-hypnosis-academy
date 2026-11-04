@@ -240,4 +240,24 @@ describe("public SSR boundaries", () => {
     expect(legacy.faviconImageId).toBeUndefined();
   });
 
+  it("uses the first selected card image as its thumbnail, independently of library order", () => {
+    const media = [
+      { id: "first", url: "/uploads/first.webp", alt: "First", caption: "", credit: "", width: 800, height: 600 },
+      { id: "second", url: "/uploads/second.webp", alt: "Second", caption: "", credit: "", width: 800, height: 600 },
+    ];
+    const section = blockSchema.parse({ id: "areas", key: "areas", type: "card_grid", heading: "Areas" });
+    const card = {
+      id: "ordered-card", type: "area" as const, slug: "ordered-card", title: "Ordered images",
+      mediaIds: ["second", "first"], sectionId: "areas",
+      order: 0, summary: "", body: "", showInNavigation: true,
+      navigationGroup: "primary" as const, variant: "default" as const,
+      seo: { noindex: false },
+    };
+    const html = renderToStaticMarkup(<PublicContent home={{
+      ...home, cards: [card], media, page: { ...home.page, sections: [section] },
+    }} />);
+    expect(html).toContain('src="/uploads/second.webp"');
+    expect(html).not.toContain('src="/uploads/first.webp"');
+  });
+
 });
