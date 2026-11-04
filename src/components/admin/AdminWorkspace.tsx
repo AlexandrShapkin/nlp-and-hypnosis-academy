@@ -7,6 +7,7 @@ import { ThemeEditor } from "./ThemeEditor";
 import { SettingsEditor } from "./SettingsEditor";
 import { NavigationEditor } from "./NavigationEditor";
 import { MediaEditor } from "./MediaEditor";
+import { TeamEditor } from "./TeamEditor";
 import { russianName, russianDate } from "./messages";
 type Row = Record<string, unknown>;
 export function AdminWorkspace({ route }: { route: string }) {
@@ -22,6 +23,8 @@ export function AdminWorkspace({ route }: { route: string }) {
         <NavigationEditor />
       ) : route === "media" ? (
         <MediaEditor />
+      ) : route === "team" ? (
+        <TeamEditor />
       ) : route === "seo" ? (
         <SeoWorkspace />
       ) : route === "leads" || route === "audit" ? (
@@ -345,6 +348,13 @@ function actionLabel(action: string) {
         login: "Вход",
         logout: "Выход",
         restore: "Восстановление версии",
+        invite: "Приглашение мейнтейнера",
+        accept: "Принятие приглашения",
+        activate: "Восстановление доступа",
+        deactivate: "Отключение доступа",
+        revoke: "Отзыв приглашения",
+        reset_link: "Ссылка восстановления пароля",
+        password_reset: "Смена пароля",
       } as Record<string, string>
     )[verb] || "Изменение сайта"
   );

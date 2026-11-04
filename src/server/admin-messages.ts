@@ -57,6 +57,14 @@ const messages: Record<string, string> = {
   "Media is in use by site content or settings. Remove the reference before deleting.":
     "Изображение используется на сайте или в сохранённых изменениях. Сначала уберите его со страниц, карточек и из настроек, затем опубликуйте изменения.",
   "Endpoint not found": "Запрошенное действие не найдено.",
+  "Only the owner can manage maintainers": "Управлять мейнтейнерами может только владелец сайта.",
+  "An account with this email already exists": "Пользователь с такой электронной почтой уже существует. Если доступ отключён, восстановите его в списке.",
+  "Invitation is invalid or expired": "Ссылка недействительна, уже использована или срок её действия истёк. Попросите владельца создать новую.",
+  "Maintainer not found": "Мейнтейнер не найден. Обновите список.",
+  "You cannot disable your own account": "Нельзя отключить собственную учётную запись.",
+  "Owner accounts cannot be disabled": "Учётную запись владельца нельзя отключить через админ-панель.",
+  "Owner password cannot be reset by another user": "Пароль владельца нельзя изменить через управление командой.",
+  "Invitation not found": "Ссылка уже использована, отозвана или не найдена.",
 };
 export function adminErrorMessage(message: string): string {
   if (messages[message]) return messages[message];

@@ -40,6 +40,29 @@ Install a browser with `npx playwright install chromium` if needed. Browser chec
 
 The maintainer CMS provides visual image selection and inline uploads for page sections, cards, SEO and brand identity. Open `/admin/media` to maintain the image library; use `/admin/pages` to attach and order multiple images in any section, and `/admin/settings` to set header/footer logos and a browser icon. Existing SQLite settings remain valid; no destructive migration is needed. See [the maintainer media guide](docs/MEDIA_EDITOR_GUIDE.md).
 
+## Managing site maintainers
+
+The first maintainer created with `npm run admin:bootstrap` is the **owner**.
+Existing accounts keep full owner access after migration `0003.sql`; no passwords
+or sessions are reset.
+
+After logging in as owner, open **Админ-панель → Мейнтейнеры сайта**.
+Create a one-time invitation link for a new email address and share it privately.
+There is no outgoing email service: the link is shown only once and expires after
+48 hours. The recipient sets a personal password (minimum 14 characters) at
+`/admin/invite`, then signs in normally.
+
+New maintainers may manage site content and settings, but cannot access team
+management. The owner can disable/re-enable their accounts, generate a new
+one-time password-recovery link, and revoke pending invitations. Disabling an
+account revokes all active sessions immediately. Owner accounts cannot be
+deactivated or reset by other users through the CMS. Accounts are preserved for
+audit history rather than permanently deleted.
+
+Invitation and reset secrets are stored only as SHA-256 hashes. Never post
+invitation links in public channels or logs. All management API operations
+enforce the existing authenticated session, CSRF and role checks.
+
 ## Architecture
 
 - `src/shared`: versioned Zod content/theme schemas and canonical URL helpers.

@@ -63,7 +63,7 @@ export function login(email: string, password: string, ip: string) {
   const user = sqlite
     .prepare("SELECT * FROM users WHERE email=? AND active=1")
     .get(email.toLowerCase()) as
-    | { id: string; email: string; password_hash: string }
+    | { id: string; email: string; role: "owner" | "maintainer"; password_hash: string }
     | undefined;
   const fallback = "00000000000000000000000000000000:" + "0".repeat(128);
   if (!verifyPassword(password, user?.password_hash || fallback) || !user)
@@ -76,16 +76,16 @@ export function login(email: string, password: string, ip: string) {
     )
     .run(randomUUID(), user.id, digest(token), expiresAt);
   audit("auth.login", user.id, user.id);
-  return { token, expiresAt, user: { id: user.id, email: user.email } };
+  return { token, expiresAt, user: { id: user.id, email: user.email, role: user.role } };
 }
 export function sessionFromToken(token?: string) {
   if (!token) return null;
   const row = sqlite
     .prepare(
-      "SELECT u.id,u.email FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1",
+      "SELECT u.id,u.email,u.role FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1",
     )
     .get(digest(token), Date.now()) as
-    | { id: string; email: string }
+    | { id: string; email: string; role: "owner" | "maintainer" }
     | undefined;
   return row || null;
 }

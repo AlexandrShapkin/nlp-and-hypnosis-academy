@@ -195,7 +195,7 @@ describe("SQLite content lifecycle", () => {
     const journal = sqlite
       .prepare("SELECT name FROM migration_journal ORDER BY name")
       .all();
-    expect(journal).toEqual([{ name: "0001.sql" }, { name: "0002.sql" }]);
+    expect(journal).toEqual([{ name: "0001.sql" }, { name: "0002.sql" }, { name: "0003.sql" }]);
     let e = store.saveEntity("card", {
       slug: "publication-time",
       title: "Publication time",

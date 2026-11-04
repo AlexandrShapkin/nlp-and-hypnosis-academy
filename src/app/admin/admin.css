@@ -701,3 +701,28 @@
   outline: 3px solid #b7702a;
   outline-offset: 3px;
 }
+
+/* Maintainer management: readable on desktop and narrow screens. */
+.cms .cms-team-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cms .cms-team-link label {
+  display: block;
+  min-width: 0;
+}
+.cms .cms-team-link input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.cms .cms-team-actions button {
+  white-space: normal;
+}
+@media (max-width: 600px) {
+  .cms .cms-team-actions button {
+    width: 100%;
+  }
+}
