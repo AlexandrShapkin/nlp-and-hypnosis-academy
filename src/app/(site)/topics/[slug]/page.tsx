@@ -36,7 +36,7 @@ export default async function TopicPage({ params }: Props) {
           title={card.title}
           summary={card.summary}
           body={card.body}
-          media={home.media.filter((m) => card.mediaIds.includes(m.id))}
+          media={card.mediaIds.flatMap((id) => home.media.filter((m) => m.id === id))}
         />
       </main>
     </SiteShell>
