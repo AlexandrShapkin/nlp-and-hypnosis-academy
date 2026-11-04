@@ -94,6 +94,8 @@ export const uiNames: Record<string, string> = {
   marketingConsent: "Согласие на новости",
   marketing_consent: "Согласие на новости",
   status: "Статус",
+  role: "Роль",
+  active: "Доступ",
   retentionUntil: "Хранить до",
   retention_until: "Хранить до",
   "400": "Обычные",
