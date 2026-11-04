@@ -6,6 +6,6 @@ export default async function ProtectedLayout({
 }: {
   children: ReactNode;
 }) {
-  await requireAdmin();
-  return <AdminShell>{children}</AdminShell>;
+  const session = await requireAdmin();
+  return <AdminShell role={session.role}>{children}</AdminShell>;
 }
