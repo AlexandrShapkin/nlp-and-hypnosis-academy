@@ -181,6 +181,19 @@ export function TeamEditor() {
 
       <div className="panel table-scroll">
         <h2>Учётные записи</h2>
+        <button
+          type="button"
+          className="secondary"
+          disabled={busy}
+          onClick={() => {
+            void perform(async () => {
+              await refresh();
+              setMessage("Список обновлён.");
+            });
+          }}
+        >
+          Обновить список
+        </button>
         {loading ? (
           <p>Загружаем список…</p>
         ) : (
