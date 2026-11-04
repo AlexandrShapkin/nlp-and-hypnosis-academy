@@ -14,6 +14,7 @@ import {
   adminValidationFields,
 } from "@/server/admin-messages";
 import * as store from "@/server/store";
+import * as maintainers from "@/server/maintainers";
 import { safeUrlSchema, type MediaAsset } from "@/shared/content";
 import { siteUrl, cardUrl, pageUrl } from "@/shared/urls";
 export const runtime = "nodejs";
@@ -81,6 +82,21 @@ async function handle(
       });
       return response;
     }
+    if (resource === "auth" && id === "accept-invite" && req.method === "POST") {
+      const input = z.object({
+        token: z.string().regex(/^[a-f0-9]{64}$/),
+        password: z.string().min(14).max(256),
+      }).parse(await req.json());
+      return ok(
+        maintainers.acceptMaintainerInvitation(
+          input.token,
+          input.password,
+          requestClientKey(req),
+        ),
+        undefined,
+        201,
+      );
+    }
     const user = await getSession();
     if (!user)
       throw new ApiError(401, "UNAUTHORIZED", "Authentication required");
@@ -92,6 +108,25 @@ async function handle(
     }
     if (resource === "auth" && id === "session" && req.method === "GET")
       return ok(user);
+    if (resource === "team") {
+      if (user.role !== "owner")
+        throw new ApiError(403, "OWNER_ONLY", "Only the owner can manage maintainers");
+      if (req.method === "GET" && !id)
+        return ok(maintainers.listMaintainers());
+      if (req.method === "POST" && id === "invite" && !action) {
+        const input = z.object({ email: z.email().max(254) }).parse(await req.json());
+        return ok(maintainers.inviteMaintainer(input.email, user.id), undefined, 201);
+      }
+      if (req.method === "POST" && id === "reset" && action)
+        return ok(maintainers.issuePasswordReset(action, user.id), undefined, 201);
+      if (req.method === "PATCH" && id && !action) {
+        const input = z.object({ active: z.boolean() }).parse(await req.json());
+        return ok(maintainers.setMaintainerActive(id, input.active, user.id));
+      }
+      if (req.method === "DELETE" && id === "invitations" && action)
+        return ok(maintainers.revokeMaintainerInvitation(action, user.id));
+      throw new ApiError(405, "METHOD", "Unsupported method");
+    }
     if (resource === "cards" || resource === "pages") {
       const kind = resource === "cards" ? "card" : "page";
       if (req.method === "GET") {
