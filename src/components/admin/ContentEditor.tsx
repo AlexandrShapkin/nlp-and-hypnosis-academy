@@ -302,14 +302,21 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
                     </select>
                     <span className="muted">Choose where this card appears on the homepage. New sections are managed in Pages & sections.</span>
                   </label>
-                  <Field
-                    label="Navigation anchor (optional)"
-                    value={draft.anchor || ""}
-                    onChange={(anchor) =>
-                      update({ anchor: anchor || undefined })
-                    }
-                    hint="Existing visible homepage section key; leave blank for standalone topic page."
-                  />
+                  <label>
+                    Navigation destination (optional)
+                    <select value={draft.anchor || ""} onChange={(e) => update({ anchor: e.target.value || undefined })}>
+                      <option value="">Link to this card's own page</option>
+                      {homeSections.filter((section) => section.visible).map((section) => (
+                        <option key={section.key} value={section.key}>
+                          Jump to homepage section: {section.heading || section.key}
+                        </option>
+                      ))}
+                      {draft.anchor && !homeSections.some((section) => section.key === draft.anchor) && (
+                        <option value={draft.anchor}>Existing anchor: {draft.anchor}</option>
+                      )}
+                    </select>
+                    <span className="muted">Choose where the menu item should lead. This does not change where the card appears.</span>
+                  </label>
                 </div>
                 <MediaPicker
                   label="Card images"
