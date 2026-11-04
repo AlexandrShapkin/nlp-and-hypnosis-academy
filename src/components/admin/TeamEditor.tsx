@@ -32,6 +32,7 @@ export function TeamEditor() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [now] = useState(Date.now);
 
   const refresh = useCallback(async () => {
     const result = await api<Team>("team");
@@ -291,7 +292,7 @@ export function TeamEditor() {
                       : "Приглашение"}
                   </td>
                   <td>
-                    {invitation.expiresAt < Date.now()
+                    {invitation.expiresAt < now
                       ? "Срок истёк"
                       : russianDate(invitation.expiresAt)}
                   </td>
