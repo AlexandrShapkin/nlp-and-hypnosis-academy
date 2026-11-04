@@ -69,6 +69,15 @@ function Overview() {
           {error}
         </p>
       )}
+      <div className="panel">
+        <h2>Photos, galleries &amp; logo</h2>
+        <p>Upload images to the library once and reuse them. Choose photos visually inside page sections or cards; select the header/footer logo in Site settings. Save and publish page/card drafts to show changes publicly.</p>
+        <div className="toolbar">
+          <Link className="button" href="/admin/media">Open media library</Link>
+          <Link className="button" href="/admin/pages">Edit section images</Link>
+          <Link className="button" href="/admin/settings">Change logo</Link>
+        </div>
+      </div>
       <div className="grid">
         {Object.entries(counts).map(([key, count]) => (
           <a className="panel" key={key} href={`/admin/${key}`}>
