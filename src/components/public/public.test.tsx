@@ -80,6 +80,7 @@ describe("public SSR boundaries", () => {
         settings={settings}
         theme={defaultTheme}
         navigation={navigation}
+        media={[]}
       >
         <main />
       </SiteShell>,
