@@ -4,6 +4,8 @@ Verdict: **PASS**
 
 Date: 2026-11-04.
 Tested source: `feat/russian-friendly-cms`, reviewed working changes atop `65c4a74`.
+Accepted source committed as `ac761b3`; follow-up documentation links the final
+[pull request #2](https://github.com/AlexandrShapkin/nlp-and-hypnosis-academy/pull/2).
 Reviewer: independent `acceptance_reviewer`; coordinator transcribed this report.
 Environment: production build at `http://localhost:8080`, disposable SQLite and
 uploads, random synthetic credentials. Existing local user data was not tested destructively.

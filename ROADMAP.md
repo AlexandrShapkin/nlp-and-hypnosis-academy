@@ -69,4 +69,5 @@ Independent final review confirmed returned upload URL200 and hero image/alt pub
 - Independent reviewer: **PASS** after resolving one P1 preview/body-edit defect and two P2 preview-layout/retention-localization findings. Independent targeted regression 1/1 PASS and separate preview/public text comparison PASS.
 - Runtime dependency audit: zero vulnerabilities. Existing local runtime/configuration fingerprints: 6/6 unchanged.
 - Six CMS screenshots and complete implementation/changed-file reports are in `reports/`.
-- No production deployment or merge. Feature PR preparation follows acceptance.
+- Delivered: [PR #2](https://github.com/AlexandrShapkin/nlp-and-hypnosis-academy/pull/2),
+  based on the existing media/branding branch (PR #1). No production deployment or merge.

@@ -1,5 +1,8 @@
 # Russian-friendly CMS implementation
 
+Pull request: [#2](https://github.com/AlexandrShapkin/nlp-and-hypnosis-academy/pull/2).
+Accepted implementation commit: `ac761b3`.
+
 Branch: `feat/russian-friendly-cms`. Base: `feat/cms-media-branding-usability`
 (PR #1, still open). No merge, deployment, runtime data reset or paid provider setup.
 
