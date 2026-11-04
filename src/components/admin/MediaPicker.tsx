@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { MediaAsset } from "@/shared/content";
 import { api } from "./api";
-import { errorMessage } from "./fields";
+const errorMessage = (error: unknown) => error instanceof Error ? error.message : "Upload failed.";
 
 type Props = {
   label: string;
