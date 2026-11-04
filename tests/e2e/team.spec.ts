@@ -48,7 +48,12 @@ test("owner invites a maintainer in Russian CMS and immediately revokes access",
     const forbidden = await member.request.get("/api/admin/team");
     expect(forbidden.status()).toBe(403);
 
-    const accountRow = page.locator("tr").filter({ hasText: email }).first();
+    await page.getByRole("button", { name: "Обновить список" }).click();
+    const accountRow = page
+      .locator(".panel")
+      .filter({ has: page.getByRole("heading", { name: "Учётные записи" }) })
+      .locator("tr")
+      .filter({ hasText: email });
     await expect(accountRow).toContainText("Мейнтейнер");
     page.once("dialog", (dialog) => dialog.accept());
     await accountRow.getByRole("button", { name: "Отключить" }).click();
