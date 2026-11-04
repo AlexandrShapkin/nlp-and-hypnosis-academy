@@ -14,8 +14,15 @@ export default function InvitationPage() {
 
   useEffect(() => {
     const value = window.location.hash.slice(1);
-    if (/^[a-f0-9]{64}$/.test(value)) setToken(value);
-    else setError("Ссылка недействительна. Попросите владельца сайта создать новую.");
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      if (/^[a-f0-9]{64}$/.test(value)) setToken(value);
+      else setError("Ссылка недействительна. Попросите владельца сайта создать новую.");
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
