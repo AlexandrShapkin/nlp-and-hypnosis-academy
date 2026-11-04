@@ -16,7 +16,7 @@ const links = [
   ["seo", "Поисковая оптимизация"],
   ["audit", "История изменений"],
 ];
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ children, role }: { children: ReactNode; role: "owner" | "maintainer" }) {
   const pathname = usePathname();
   const router = useRouter();
   const [error, setError] = useState("");
@@ -31,7 +31,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           АКАДЕМИЯ<span>Управление сайтом</span>
         </Link>
         <nav aria-label="Управление сайтом">
-          {links.map(([path, label]) => (
+          {(role === "owner" ? [...links, ["team", "Мейнтейнеры сайта"]] : links).map(([path, label]) => (
             <Link
               key={path}
               href={`/admin${path ? `/${path}` : ""}`}
