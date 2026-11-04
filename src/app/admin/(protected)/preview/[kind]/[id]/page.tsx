@@ -37,6 +37,7 @@ export default async function PreviewPage({
           settings={home.settings}
           navigation={home.navigation}
           theme={home.theme}
+          media={home.media}
         >
           <DetailContent
             title={draft.title}
@@ -59,6 +60,7 @@ export default async function PreviewPage({
         settings={home.settings}
         navigation={home.navigation}
         theme={home.theme}
+          media={home.media}
       >
         {draft.sections.length ? (
           <PublicContent
