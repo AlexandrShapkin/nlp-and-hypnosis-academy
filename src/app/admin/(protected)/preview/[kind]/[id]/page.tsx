@@ -43,7 +43,7 @@ export default async function PreviewPage({
             title={draft.title}
             summary={draft.summary}
             body={draft.body}
-            media={home.media.filter((m) => draft.mediaIds.includes(m.id))}
+            media={draft.mediaIds.flatMap((id) => home.media.filter((m) => m.id === id))}
           />
         </SiteShell>
       </>
