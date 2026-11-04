@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "site": {
+    "workingTitle": "NLP & Hypnosis Academy",
+    "locale": "ru-RU",
+    "status": "editorial-placeholder",
+    "notice": "All draft copy in this fixture is instructional English placeholder text, not approved public content."
+  },
+  "homepage": {
+    "path": "/",
+    "sections": [
+      {
+        "key": "hero",
+        "type": "hero",
+        "title": "Specialist introduction",
+        "published": false
+      },
+      {
+        "key": "statistics",
+        "type": "metrics",
+        "title": "Practice at a glance",
+        "published": false
+      },
+      {
+        "key": "about",
+        "type": "about",
+        "title": "About the specialist",
+        "published": false
+      },
+      {
+        "key": "areas",
+        "type": "card_grid",
+        "title": "How I can help",
+        "published": false
+      },
+      {
+        "key": "services",
+        "type": "service_list",
+        "title": "Services and prices",
+        "published": false
+      },
+      {
+        "key": "testimonials",
+        "type": "testimonials",
+        "title": "Client experiences",
+        "published": false
+      },
+      {
+        "key": "contact",
+        "type": "contact_form",
+        "title": "Ask a question",
+        "published": false
+      }
+    ]
+  },
+  "siteShell": {
+    "header": {
+      "type": "navigation",
+      "published": false
+    },
+    "footer": {
+      "type": "footer",
+      "published": false
+    }
+  },
+  "editorialChecklist": [
+    "Approve Russian hero copy",
+    "Supply licensed portrait",
+    "Verify credentials",
+    "Confirm services/prices",
+    "Import consented testimonials",
+    "Review contact/legal copy",
+    "Set booking URL and social links"
+  ],
+  "sampleNewCard": {
+    "type": "topic",
+    "title": "Sample topic — replace before publishing",
+    "slug": "sample-topic",
+    "summary": "Draft-only demonstration",
+    "body": "Approved content goes here",
+    "showInNavigation": true,
+    "navigationGroup": "primary",
+    "published": false,
+    "seo": {
+      "title": "Sample topic",
+      "description": "Draft content",
+      "noindex": true
+    }
+  }
+}

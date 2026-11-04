@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "baseUrl": "http://localhost:8080",
+  "criticalScenarios": [
+    {
+      "id": "A-001",
+      "title": "Fresh migrations and seed are idempotent",
+      "steps": [
+        "Create blank SQLite file",
+        "Run migrations",
+        "Run seed twice"
+      ],
+      "expected": "No duplicates or overwrites"
+    },
+    {
+      "id": "A-002",
+      "title": "Public SSR home and metadata",
+      "steps": [
+        "GET / with JS disabled"
+      ],
+      "expected": "Meaningful HTML, ru lang, title, H1 and original sections"
+    },
+    {
+      "id": "A-003",
+      "title": "Auth guards admin",
+      "steps": [
+        "GET /admin without session",
+        "POST /api/admin/cards without session"
+      ],
+      "expected": "Login redirect and 401/403"
+    },
+    {
+      "id": "A-004",
+      "title": "New card draft invisible",
+      "steps": [
+        "Authenticate",
+        "Create new card (showInNavigation defaults true)",
+        "Save draft"
+      ],
+      "expected": "No public menu entry, topic route or sitemap entry"
+    },
+    {
+      "id": "A-005",
+      "title": "Published card auto navigation",
+      "steps": [
+        "Publish A-004 draft",
+        "GET homepage",
+        "GET topic route",
+        "GET sitemap.xml"
+      ],
+      "expected": "Navigation link works on desktop/mobile; topic 200 with unique metadata; sitemap contains canonical route subject to policy"
+    },
+    {
+      "id": "A-006",
+      "title": "Unpublish removes route and links",
+      "steps": [
+        "Unpublish card A-005",
+        "GET homepage, topic and sitemap"
+      ],
+      "expected": "No nav/sitemap entry; topic 404/410"
+    },
+    {
+      "id": "A-007",
+      "title": "Card rename preserves redirect",
+      "steps": [
+        "Republish card",
+        "Change slug and publish",
+        "GET old URL"
+      ],
+      "expected": "Old 301 to new, nav and sitemap use new only"
+    },
+    {
+      "id": "A-008",
+      "title": "Theme publish and rollback",
+      "steps": [
+        "Save draft primary color",
+        "Confirm public unchanged",
+        "Publish theme",
+        "Restore prior version"
+      ],
+      "expected": "CSS variables change only after publish; rollback restores"
+    },
+    {
+      "id": "A-009",
+      "title": "Contact form consent and validation",
+      "steps": [
+        "Submit without consent",
+        "Submit valid fields and explicit privacy consent"
+      ],
+      "expected": "Invalid rejected; valid stored with exact opt-in status"
+    },
+    {
+      "id": "A-010",
+      "title": "Security hostile input",
+      "steps": [
+        "Submit script HTML and CSS injection",
+        "Attempt unsafe upload"
+      ],
+      "expected": "Sanitized or rejected; no script execution or path escape"
+    },
+    {
+      "id": "A-011",
+      "title": "Responsive and accessible navigation",
+      "steps": [
+        "Visit 375px and desktop viewport",
+        "Use only keyboard"
+      ],
+      "expected": "All links reachable, visible focus, no overflow"
+    },
+    {
+      "id": "A-012",
+      "title": "Environment indexing safeguards",
+      "steps": [
+        "Check robots/meta with SEO_ALLOW_INDEXING=false",
+        "Verify production-like fixture"
+      ],
+      "expected": "Local noindex; production sitemap and canonical rules correct"
+    }
+  ]
+}

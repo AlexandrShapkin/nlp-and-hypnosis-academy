@@ -1,0 +1,11 @@
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+export const conflict = (message = "Revision conflict") =>
+  new ApiError(409, "CONFLICT", message);

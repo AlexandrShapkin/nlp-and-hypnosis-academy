@@ -1,0 +1,118 @@
+{
+  "kitVersion": "1.0.0",
+  "createdOn": "2026-11-04",
+  "language": "en",
+  "repository": "https://github.com/AlexandrShapkin/nlp-and-hypnosis-academy",
+  "checkoutPath": "/home/user/Projects/nlp-and-hypnosis-academy",
+  "localUrl": "http://localhost:8080",
+  "applicationStatus": "not-implemented",
+  "workerSubagents": 3,
+  "primaryCoordinatorThreads": 1,
+  "independentAcceptanceAgents": 1,
+  "files": {
+    ".codex/agents/acceptance-reviewer.toml": {
+      "sha256": "dc681b3b9c41a2a6ac16ff16acc83322a832e6fb7fac4a50c43a6c1b4ef7aacb",
+      "bytes": 1346
+    },
+    ".codex/agents/content-backend.toml": {
+      "sha256": "234580ad006e35bae982384b6ee2a96ffc51fba7ddd548be23a2517f32169c13",
+      "bytes": 1283
+    },
+    ".codex/agents/maintainer-admin.toml": {
+      "sha256": "e6a21e48d9d6835bb93fa1ec33bdb956028750f52de3019838a6108b2fc157d1",
+      "bytes": 1246
+    },
+    ".codex/agents/public-site.toml": {
+      "sha256": "5f88573a3279a31b46629025840a36ae6b0262fa1692346e61a00c0cfed8e253",
+      "bytes": 1274
+    },
+    ".codex/config.toml": {
+      "sha256": "5704aeb00cc0479399f95df7056b1b73d19f8cf065ea3c3cbb73871bfbea4afe",
+      "bytes": 245
+    },
+    ".env.example": {
+      "sha256": "ad72c409f6137904c930474a8f8901c45d3282c47df14cfdc7cf7ab640da9559",
+      "bytes": 528
+    },
+    ".gitignore": {
+      "sha256": "fb70f7c4b569996af751fceaa1c8f3ed8450f78ecbd5d4c5b8f3e126764a740c",
+      "bytes": 200
+    },
+    "AGENTS.md": {
+      "sha256": "2c7682b5d06976f027f6a4b46261467c65c1da4c07a65c0ef13fdc4e44eba81d",
+      "bytes": 4920
+    },
+    "PROMPT_FOR_CODEX.md": {
+      "sha256": "caa9ebb6e2ec445cee7bc4e46e3fa9594237d51b8500f29fa818803a38437dd6",
+      "bytes": 3632
+    },
+    "README.md": {
+      "sha256": "ecab43edd1b678868e106067966d6c67405280920c2d501a1def10770ab5d45d",
+      "bytes": 4295
+    },
+    "ROADMAP.md": {
+      "sha256": "28b099080991f67188b2e6082e0a05c566ceb9fb4adc356c9f08a7445d003db7",
+      "bytes": 2546
+    },
+    "contracts/acceptance-cases.json": {
+      "sha256": "ea909dfc1511b08f8ac2c437ff29cd32a627003199c14c92e543315d8c31a2aa",
+      "bytes": 3328
+    },
+    "contracts/content-types.json": {
+      "sha256": "5206462f883e9a4d15807ed1328d1e2c5b727df01de86ce61c7ffe37a0ba2a27",
+      "bytes": 4346
+    },
+    "docs/ACCEPTANCE.md": {
+      "sha256": "6b33a5d9a0077b8042c93d6a9da7a7fa91faf56ef70fa8621396b763249ddb21",
+      "bytes": 4376
+    },
+    "docs/ADMIN_AND_THEME.md": {
+      "sha256": "4b3e3ece88360b7401183f7d2f1332ee7519e95e4ca0872292e2cc799119578d",
+      "bytes": 4274
+    },
+    "docs/API_CONTRACT.md": {
+      "sha256": "6e8b8589bb4d99f543974e1f0fa3257a80c7f6ab24afc11d966955a95f2fef40",
+      "bytes": 4061
+    },
+    "docs/ARCHITECTURE.md": {
+      "sha256": "82a02240e22f7411b360283dfcb7734d3b514904122bfa62e26bf82375f22bd9",
+      "bytes": 4189
+    },
+    "docs/DATA_AND_CONTENT.md": {
+      "sha256": "7f6796ca1eb15020ef82b2396ce8078a371ee319751ca7f3ab1136b6057b7195",
+      "bytes": 5775
+    },
+    "docs/DECISIONS.md": {
+      "sha256": "a8a5c66b64ce12acbc6ca548e866f09ed59a79effc71083dab7eee18249d18b8",
+      "bytes": 2131
+    },
+    "docs/IMPLEMENTATION_NOTES.md": {
+      "sha256": "34fbdfc5933ec113162d108631b90db603c033c08f114a2e2374e352ba8c2697",
+      "bytes": 2208
+    },
+    "docs/LAUNCH_CHECKLIST.md": {
+      "sha256": "b2ec9bc3a42c847aba1d163b87000b3c91e917181a1b06518032c5d254b6512d",
+      "bytes": 1104
+    },
+    "docs/REFERENCE_BLUEPRINT.md": {
+      "sha256": "aab18fc85d63d1f7c6144f08be53e4600d68eeb062613e4fd368d1b7243c9a71",
+      "bytes": 3351
+    },
+    "docs/SECURITY.md": {
+      "sha256": "605421fb9366a40dd3471160edc2a3c52b0a088476f9c8a9461f001944759022",
+      "bytes": 2889
+    },
+    "docs/SEO_AND_ROUTING.md": {
+      "sha256": "22e3cdc075fb9ed658bbdcf0f83bc817378bc42388fa654e0fd74b006a6b17af",
+      "bytes": 3692
+    },
+    "docs/TEAM_PROTOCOL.md": {
+      "sha256": "015191248641b9923c66933b8152f845cde9327f98f7ac1b1dac29317fc16f2c",
+      "bytes": 3362
+    },
+    "fixtures/site-seed.example.json": {
+      "sha256": "3f180e474571106ebb6f1513127f7bda7994f4c93ff7543c0a502a618a5b19ba",
+      "bytes": 2146
+    }
+  }
+}

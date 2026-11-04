@@ -1,0 +1,269 @@
+{
+  "schemaVersion": 1,
+  "locale": "ru-RU",
+  "defaultCardNavigation": {
+    "showInNavigation": true,
+    "target": "canonical-card-route",
+    "pattern": "/topics/{slug}"
+  },
+  "publishing": {
+    "draftIsPublic": false,
+    "navigationOnPublish": true,
+    "navigationOnUnpublish": false,
+    "redirectOnSlugChange": 301
+  },
+  "blockTypes": {
+    "hero": {
+      "required": [
+        "headline",
+        "body"
+      ],
+      "optional": [
+        "eyebrow",
+        "imageId",
+        "primaryCta"
+      ]
+    },
+    "metrics": {
+      "required": [
+        "heading"
+      ],
+      "optional": [
+        "intro"
+      ]
+    },
+    "about": {
+      "required": [
+        "heading",
+        "body"
+      ],
+      "optional": [
+        "imageId"
+      ]
+    },
+    "card_grid": {
+      "required": [
+        "heading"
+      ],
+      "optional": [
+        "intro",
+        "layoutVariant"
+      ]
+    },
+    "service_list": {
+      "required": [
+        "heading"
+      ],
+      "optional": [
+        "intro",
+        "bookingCta"
+      ]
+    },
+    "testimonials": {
+      "required": [
+        "heading"
+      ],
+      "optional": [
+        "intro"
+      ]
+    },
+    "contact_form": {
+      "required": [
+        "heading",
+        "submitLabel",
+        "privacyPolicyPageId"
+      ],
+      "optional": [
+        "description",
+        "successMessage"
+      ]
+    },
+    "rich_text": {
+      "required": [
+        "heading",
+        "body"
+      ],
+      "optional": [
+        "tocEnabled"
+      ]
+    },
+    "faq": {
+      "required": [
+        "heading"
+      ],
+      "optional": []
+    },
+    "cta": {
+      "required": [
+        "headline",
+        "label",
+        "url"
+      ],
+      "optional": [
+        "body"
+      ]
+    },
+    "media_gallery": {
+      "required": [
+        "heading"
+      ],
+      "optional": [
+        "mediaIds"
+      ]
+    },
+    "legal_text": {
+      "required": [
+        "heading",
+        "body",
+        "version"
+      ],
+      "optional": [
+        "effectiveDate"
+      ]
+    },
+    "footer": {
+      "required": [
+        "contacts",
+        "legalLinks"
+      ],
+      "optional": [
+        "socialLinks",
+        "organization"
+      ]
+    }
+  },
+  "cardTypes": {
+    "area": {
+      "required": [
+        "title",
+        "summary"
+      ],
+      "optional": [
+        "body",
+        "mediaIds"
+      ]
+    },
+    "service": {
+      "required": [
+        "title",
+        "summary"
+      ],
+      "optional": [
+        "body",
+        "priceLabel",
+        "durationLabel",
+        "mediaIds"
+      ]
+    },
+    "testimonial": {
+      "required": [
+        "title",
+        "body",
+        "consentVerified"
+      ],
+      "optional": [
+        "displayName",
+        "mediaIds"
+      ]
+    },
+    "metric": {
+      "required": [
+        "title",
+        "value",
+        "label",
+        "evidenceVerified"
+      ],
+      "optional": []
+    },
+    "credential": {
+      "required": [
+        "title",
+        "issuer",
+        "verificationStatus"
+      ],
+      "optional": [
+        "year",
+        "mediaIds"
+      ]
+    },
+    "topic": {
+      "required": [
+        "title",
+        "summary",
+        "body"
+      ],
+      "optional": [
+        "mediaIds"
+      ]
+    },
+    "article": {
+      "required": [
+        "title",
+        "summary",
+        "body"
+      ],
+      "optional": [
+        "authorId",
+        "publishedAt",
+        "mediaIds"
+      ]
+    },
+    "event": {
+      "required": [
+        "title",
+        "summary",
+        "body"
+      ],
+      "optional": [
+        "startAt",
+        "venue",
+        "bookingUrl",
+        "mediaIds"
+      ]
+    },
+    "faq": {
+      "required": [
+        "title",
+        "answer"
+      ],
+      "optional": []
+    }
+  },
+  "seoFields": [
+    "title",
+    "description",
+    "noindex",
+    "ogImageId"
+  ],
+  "themeTokens": {
+    "colors": [
+      "background",
+      "surface",
+      "text",
+      "muted",
+      "primary",
+      "accent",
+      "border"
+    ],
+    "typography": [
+      "bodyFontPreset",
+      "headingFontPreset",
+      "typeScale"
+    ],
+    "layout": [
+      "contentMaxWidth",
+      "sectionSpacing",
+      "cardGap"
+    ],
+    "shape": [
+      "cardRadius",
+      "buttonRadius",
+      "shadowPreset"
+    ],
+    "variants": [
+      "heroLayout",
+      "buttonVariant",
+      "cardVariant"
+    ]
+  }
+}
