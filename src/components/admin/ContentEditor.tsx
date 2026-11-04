@@ -305,7 +305,7 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
                   <label>
                     Navigation destination (optional)
                     <select value={draft.anchor || ""} onChange={(e) => update({ anchor: e.target.value || undefined })}>
-                      <option value="">Link to this card's own page</option>
+                      <option value="">Link to the card detail page</option>
                       {homeSections.filter((section) => section.visible).map((section) => (
                         <option key={section.key} value={section.key}>
                           Jump to homepage section: {section.heading || section.key}
