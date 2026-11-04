@@ -13,6 +13,7 @@ import {
 } from "@/shared/content";
 import { api } from "./api";
 import { Field, Select, SeoFields, errorMessage, slugify } from "./fields";
+import { MediaPicker } from "./MediaPicker";
 type Draft = CardDraft | PageDraft;
 const emptyCard = () => ({
   ...cardSchema.parse({ title: "New card", slug: "new-card" }),
@@ -34,6 +35,8 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
   const [preview, setPreview] = useState(false);
   const [filter, setFilter] = useState("");
   const [media, setMedia] = useState<MediaAsset[]>([]);
+  const [homeSections, setHomeSections] = useState<Block[]>([]);
+  const onUploaded = (asset: MediaAsset) => setMedia((items) => [...items, asset]);
   const [dirty, setDirty] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
   const load = useCallback(async () => {
@@ -47,6 +50,11 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
     void api<MediaAsset[]>("media")
       .then((r) => setMedia(r.data))
       .catch(() => {});
+    if (kind === "cards") {
+      void api<Entity<PageDraft>[]>("pages")
+        .then((r) => setHomeSections(r.data.find((e) => e.draft.slug === "home")?.draft.sections || []))
+        .catch(() => {});
+    }
   }, [kind]);
   function edit(entity: Entity<Draft> | null) {
     if (dirty && !confirm("Discard unsaved edits?")) return;
@@ -276,14 +284,24 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
             {isCard && (
               <>
                 <div className="grid">
-                  <Field
-                    label="Section ID"
-                    value={draft.sectionId || ""}
-                    onChange={(sectionId) =>
-                      update({ sectionId: sectionId || undefined })
-                    }
-                    hint="Use the section ID shown in the page editor to place this card."
-                  />
+                  <label>
+                    Place card in section
+                    <select
+                      value={draft.sectionId || ""}
+                      onChange={(e) => update({ sectionId: e.target.value || undefined })}
+                    >
+                      <option value="">Automatic: choose by card type</option>
+                      {homeSections.map((section) => (
+                        <option key={section.id} value={section.id}>
+                          {section.heading || section.type} ({section.type})
+                        </option>
+                      ))}
+                      {draft.sectionId && !homeSections.some((section) => section.id === draft.sectionId) && (
+                        <option value={draft.sectionId}>Existing section: {draft.sectionId}</option>
+                      )}
+                    </select>
+                    <span className="muted">Choose where this card appears on the homepage. New sections are managed in Pages & sections.</span>
+                  </label>
                   <Field
                     label="Navigation anchor (optional)"
                     value={draft.anchor || ""}
@@ -293,30 +311,15 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
                     hint="Existing visible homepage section key; leave blank for standalone topic page."
                   />
                 </div>
-                <label>
-                  Images
-                  <select
-                    multiple
-                    value={draft.mediaIds}
-                    onChange={(e) =>
-                      update({
-                        mediaIds: Array.from(
-                          e.target.selectedOptions,
-                          (v) => v.value,
-                        ),
-                      })
-                    }
-                  >
-                    {media.map((asset) => (
-                      <option key={asset.id} value={asset.id}>
-                        {asset.alt || asset.id}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="muted">
-                    Hold Ctrl/Command to select multiple images.
-                  </span>
-                </label>
+                <MediaPicker
+                  label="Card images"
+                  value={draft.mediaIds}
+                  media={media}
+                  multiple
+                  onChange={(mediaIds) => update({ mediaIds })}
+                  onUploaded={onUploaded}
+                  hint="The first image is used as the card thumbnail; all images appear in order on its detail page."
+                />
               </>
             )}
             <label className="check">
@@ -344,11 +347,12 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
                 }
               />
             </div>
-            <SeoFields seo={draft.seo} onChange={(seo) => update({ seo })} />
+            <SeoFields seo={draft.seo} onChange={(seo) => update({ seo })} media={media} onUploaded={onUploaded} />
             {!isCard && (
               <Sections
                 sections={draft.sections}
                 media={media}
+                onUploaded={onUploaded}
                 onChange={(sections) => update({ sections })}
               />
             )}
@@ -465,10 +469,12 @@ export function ContentEditor({ kind }: { kind: "cards" | "pages" }) {
 function Sections({
   sections,
   media,
+  onUploaded,
   onChange,
 }: {
   sections: Block[];
   media: MediaAsset[];
+  onUploaded: (asset: MediaAsset) => void;
   onChange: (v: Block[]) => void;
 }) {
   function update(index: number, patch: Partial<Block>) {
@@ -527,22 +533,16 @@ function Sections({
             onChange={(eyebrow) => update(index, { eyebrow })}
           />
           <div className="grid">
-            <label>
-              Section image
-              <select
-                value={section.imageId || ""}
-                onChange={(e) =>
-                  update(index, { imageId: e.target.value || undefined })
-                }
-              >
-                <option value="">No image</option>
-                {media.map((asset) => (
-                  <option value={asset.id} key={asset.id}>
-                    {asset.alt || asset.id}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div>
+              <MediaPicker
+                label="Featured section image"
+                value={section.imageId ? [section.imageId] : []}
+                media={media}
+                onUploaded={onUploaded}
+                onChange={(ids) => update(index, { imageId: ids[0] })}
+                hint="Main image for hero and about sections. Optional elsewhere."
+              />
+            </div>
             <Select
               label="Section appearance"
               value={section.variant}
@@ -552,6 +552,15 @@ function Sections({
               }
             />
           </div>
+          <MediaPicker
+            label={section.type === "media_gallery" ? "Gallery images" : "Additional section images"}
+            value={Array.isArray(section.data.mediaIds) ? section.data.mediaIds : []}
+            media={media}
+            multiple
+            onUploaded={onUploaded}
+            onChange={(mediaIds) => update(index, { data: { ...section.data, mediaIds } })}
+            hint="Select any number of images. Use arrows to change the display order. Save the page draft, preview, then publish."
+          />
           <SectionData
             data={section.data}
             onChange={(data) => update(index, { data })}
@@ -629,7 +638,7 @@ function SectionData({
   return (
     <details>
       <summary>Block labels, links & additional fields</summary>
-      {Object.entries(data).map(([name, value]) => (
+      {Object.entries(data).filter(([name]) => name !== "mediaIds").map(([name, value]) => (
         <label key={name}>
           {name}
           {typeof value === "boolean" ? (
