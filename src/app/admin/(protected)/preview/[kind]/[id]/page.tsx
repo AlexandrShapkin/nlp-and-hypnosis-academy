@@ -37,12 +37,13 @@ export default async function PreviewPage({
           settings={home.settings}
           navigation={home.navigation}
           theme={home.theme}
+          media={home.media}
         >
           <DetailContent
             title={draft.title}
             summary={draft.summary}
             body={draft.body}
-            media={home.media.filter((m) => draft.mediaIds.includes(m.id))}
+            media={draft.mediaIds.flatMap((id) => home.media.filter((m) => m.id === id))}
           />
         </SiteShell>
       </>
@@ -59,6 +60,7 @@ export default async function PreviewPage({
         settings={home.settings}
         navigation={home.navigation}
         theme={home.theme}
+          media={home.media}
       >
         {draft.sections.length ? (
           <PublicContent

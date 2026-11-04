@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { settingsSchema, type Settings } from "@/shared/content";
+import { settingsSchema, type Settings, type MediaAsset } from "@/shared/content";
+import { MediaPicker } from "./MediaPicker";
 import { api } from "./api";
 import { Field, SeoFields, errorMessage } from "./fields";
-const labels: Record<Exclude<keyof Settings, "seo">, string> = {
+type TextSetting = Exclude<keyof Settings, "seo" | "logoImageId" | "footerLogoImageId" | "faviconImageId">;
+const labels: Record<TextSetting, string> = {
   siteTitle: "Site title",
   description: "Site description",
   brandLabel: "Header brand label",
@@ -22,7 +24,10 @@ export function SettingsEditor() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [media, setMedia] = useState<MediaAsset[]>([]);
+  const onUploaded = (asset: MediaAsset) => setMedia((items) => [...items, asset]);
   useEffect(() => {
+    void api<MediaAsset[]>("media").then((r) => setMedia(r.data)).catch((e) => setError(errorMessage(e)));
     void api<Settings>("settings")
       .then((r) => {
         setDraft(r.data);
@@ -76,7 +81,7 @@ export function SettingsEditor() {
               <Field
                 key={key}
                 label={label}
-                value={draft[key as Exclude<keyof Settings, "seo">]}
+                value={draft[key as TextSetting]}
                 multiline={["description", "footerText", "legalText"].includes(
                   key,
                 )}
@@ -84,9 +89,39 @@ export function SettingsEditor() {
               />
             ))}
           </div>
+          <div className="cms-brand-settings">
+            <h2>Brand images</h2>
+            <p className="muted">Choose brand images from the library or upload them here. The header and footer can use different versions for light and dark backgrounds. Text branding remains a fallback.</p>
+            <MediaPicker
+              label="Header logo"
+              value={draft.logoImageId ? [draft.logoImageId] : []}
+              media={media}
+              onUploaded={onUploaded}
+              onChange={(ids) => setDraft({ ...draft, logoImageId: ids[0] })}
+              hint="Recommended: horizontal logo or transparent symbol with good contrast on light backgrounds."
+            />
+            <MediaPicker
+              label="Footer logo"
+              value={draft.footerLogoImageId ? [draft.footerLogoImageId] : []}
+              media={media}
+              onUploaded={onUploaded}
+              onChange={(ids) => setDraft({ ...draft, footerLogoImageId: ids[0] })}
+              hint="Optional alternative for the dark footer. If empty, the original brand symbol remains."
+            />
+            <MediaPicker
+              label="Browser tab icon (favicon)"
+              value={draft.faviconImageId ? [draft.faviconImageId] : []}
+              media={media}
+              onUploaded={onUploaded}
+              onChange={(ids) => setDraft({ ...draft, faviconImageId: ids[0] })}
+              hint="Square image recommended. The app serves uploaded images as optimized WebP."
+            />
+          </div>
           <SeoFields
             seo={draft.seo}
             onChange={(seo) => setDraft({ ...draft, seo })}
+            media={media}
+            onUploaded={onUploaded}
           />
           <button disabled={busy}>{busy ? "Saving…" : "Save settings"}</button>
           <p className="muted">

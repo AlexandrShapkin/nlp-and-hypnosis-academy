@@ -41,6 +41,16 @@ function Picture({
     </div>
   );
 }
+function SectionGallery({ assets }: { assets: MediaAsset[] }) {
+  if (!assets.length) return null;
+  return (
+    <div className="public-gallery-grid" aria-label="Фотогалерея">
+      {assets.map((asset) => (
+        <Picture key={asset.id} asset={asset} />
+      ))}
+    </div>
+  );
+}
 function Card({
   card,
   media,
@@ -50,7 +60,7 @@ function Card({
   media: MediaAsset[];
   index: number;
 }) {
-  const image = media.find((m) => card.mediaIds.includes(m.id));
+  const image = card.mediaIds.map((id) => media.find((m) => m.id === id)).find(Boolean);
   return (
     <article className={`public-card public-variant-${card.variant}`}>
       {image && <Picture asset={image} />}
@@ -95,6 +105,10 @@ export function PublicContent({ home }: { home: PublishedHome }) {
             ? assigned
             : home.cards.filter((c) => c.type === type && !c.sectionId);
           const asset = home.media.find((m) => m.id === block.imageId);
+          const galleryIds = Array.isArray(block.data.mediaIds) ? block.data.mediaIds : [];
+          const galleryAssets = galleryIds
+            .map((id) => home.media.find((m) => m.id === id))
+            .filter((item): item is MediaAsset => Boolean(item));
           const ctaLabel = text(block, "ctaLabel");
           const candidateUrl = text(block, "ctaUrl");
           const ctaUrl = safeUrlSchema.safeParse(candidateUrl).success
@@ -127,6 +141,11 @@ export function PublicContent({ home }: { home: PublishedHome }) {
                   </div>
                   <Picture asset={asset} priority />
                 </div>
+                {galleryAssets.length > 0 && (
+                  <div className="public-container public-gallery-after">
+                    <SectionGallery assets={galleryAssets} />
+                  </div>
+                )}
               </section>
             );
           return (
@@ -211,17 +230,7 @@ export function PublicContent({ home }: { home: PublishedHome }) {
                     ))}
                   </div>
                 ) : block.type === "media_gallery" ? (
-                  <div className="public-card-grid">
-                    {home.media
-                      .filter(
-                        (m) =>
-                          Array.isArray(block.data.mediaIds) &&
-                          block.data.mediaIds.includes(m.id),
-                      )
-                      .map((m) => (
-                        <Picture key={m.id} asset={m} />
-                      ))}
-                  </div>
+                  <SectionGallery assets={galleryAssets} />
                 ) : (
                   <div className="public-card-grid">
                     {cards.map((card, index) => (
@@ -232,6 +241,11 @@ export function PublicContent({ home }: { home: PublishedHome }) {
                         key={card.id}
                       />
                     ))}
+                  </div>
+                )}
+                {block.type !== "media_gallery" && galleryAssets.length > 0 && (
+                  <div className="public-gallery-after">
+                    <SectionGallery assets={galleryAssets} />
                   </div>
                 )}
                 {!cards.length && text(block, "emptyMessage") && (

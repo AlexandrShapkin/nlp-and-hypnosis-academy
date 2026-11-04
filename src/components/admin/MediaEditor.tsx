@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { MediaAsset } from "@/shared/content";
 import { api } from "./api";
@@ -9,6 +10,8 @@ export function MediaEditor() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const visibleAssets = assets.filter((asset) => (asset.alt + " " + asset.caption + " " + asset.credit).toLowerCase().includes(query.toLowerCase()));
   async function load() {
     const result = await api<MediaAsset[]>("media");
     setAssets(result.data);
@@ -22,9 +25,16 @@ export function MediaEditor() {
     <>
       <h1>Media library</h1>
       <p className="intro">
-        Upload approved raster images with meaningful alternative text. Unsafe
-        formats are rejected by the server.
+        Upload approved photos and illustrations here, or directly from a page,
+        card or logo editor. The same image can be reused across the site.
       </p>
+      <div className="panel notice">
+        <h2>How to use your images</h2>
+        <p>1. Upload a JPEG, PNG or WebP image (up to 5 MB) and describe it in the alternative text field.</p>
+        <p>2. Open <Link href="/admin/pages">Pages &amp; sections</Link> to select and order images for a section, or <Link href="/admin/cards">Cards</Link> for card photos.</p>
+        <p>3. To update the website logo or browser icon, open <Link href="/admin/settings">Site settings</Link> and choose images under Brand images.</p>
+        <p>4. Save and publish content changes. Site settings apply when you save them.</p>
+      </div>
       {error && (
         <p role="alert" className="error">
           {error}
@@ -79,8 +89,12 @@ export function MediaEditor() {
         </div>
         <button disabled={busy}>{busy ? "Uploading…" : "Upload image"}</button>
       </form>
+      <label>
+        Search library ({assets.length} images)
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search image descriptions or credits" />
+      </label>
       <div className="media-grid">
-        {assets.map((asset) => (
+        {visibleAssets.map((asset) => (
           <MediaCard
             key={asset.id}
             asset={asset}
@@ -90,7 +104,8 @@ export function MediaEditor() {
           />
         ))}
       </div>
-      {!assets.length && <p>No media uploaded yet.</p>}
+      {!assets.length && <p>No media uploaded yet. Use the form above to upload your first image.</p>}
+      {assets.length > 0 && visibleAssets.length === 0 && <p>No images match that search.</p>}
     </>
   );
 }

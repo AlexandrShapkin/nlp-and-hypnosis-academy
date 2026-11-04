@@ -1,18 +1,23 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import type { NavigationItem, Settings, Theme } from "@/shared/content";
+import Image from "next/image";
+import type { NavigationItem, Settings, Theme, MediaAsset } from "@/shared/content";
 import { themeStyle } from "./theme";
 export function SiteShell({
   settings,
   navigation,
   theme,
+  media,
   children,
 }: {
   settings: Settings;
   navigation: NavigationItem[];
   theme: Theme;
+  media: MediaAsset[];
   children: ReactNode;
 }) {
+  const headerLogo = media.find((item) => item.id === settings.logoImageId);
+  const footerLogo = media.find((item) => item.id === settings.footerLogoImageId);
   const primary = navigation
     .filter((n) => n.visible && n.group === "primary")
     .sort((a, b) => a.order - b.order);
@@ -36,9 +41,18 @@ export function SiteShell({
             href="/"
             aria-label={settings.siteTitle}
           >
-            <span className="public-brand-mark" aria-hidden="true">
-              ✳
-            </span>
+            {headerLogo ? (
+              <Image
+                className="public-brand-logo"
+                src={headerLogo.url}
+                width={headerLogo.width}
+                height={headerLogo.height}
+                alt=""
+                unoptimized
+              />
+            ) : (
+              <span className="public-brand-mark" aria-hidden="true">✳</span>
+            )}
             <span>{settings.brandLabel}</span>
           </Link>
           <nav className="public-desktop-nav" aria-label="Основная навигация">
@@ -84,9 +98,18 @@ export function SiteShell({
         <div className="public-container">
           <div className="public-footer-top">
             <Link className="public-brand" href="/">
-              <span className="public-brand-mark" aria-hidden="true">
-                ✳
-              </span>
+              {footerLogo ? (
+                <Image
+                  className="public-brand-logo"
+                  src={footerLogo.url}
+                  width={footerLogo.width}
+                  height={footerLogo.height}
+                  alt=""
+                  unoptimized
+                />
+              ) : (
+                <span className="public-brand-mark" aria-hidden="true">✳</span>
+              )}
               {settings.brandLabel}
             </Link>
             <p>{settings.footerText}</p>

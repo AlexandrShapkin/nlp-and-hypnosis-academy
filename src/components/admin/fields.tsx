@@ -1,6 +1,7 @@
 "use client";
 import { useId } from "react";
-import type { Seo } from "@/shared/content";
+import type { Seo, MediaAsset } from "@/shared/content";
+import { MediaPicker } from "./MediaPicker";
 export function Field({
   label,
   value,
@@ -72,9 +73,13 @@ export function Select({
 export function SeoFields({
   seo,
   onChange,
+  media,
+  onUploaded,
 }: {
   seo: Seo;
   onChange: (v: Seo) => void;
+  media: MediaAsset[];
+  onUploaded: (asset: MediaAsset) => void;
 }) {
   return (
     <details className="section-box">
@@ -85,12 +90,16 @@ export function SeoFields({
           value={seo.title || ""}
           onChange={(title) => onChange({ ...seo, title })}
         />
-        <Field
-          label="Open Graph image ID"
-          value={seo.ogImageId || ""}
-          onChange={(ogImageId) => onChange({ ...seo, ogImageId })}
-        />
+
       </div>
+      <MediaPicker
+        label="Social sharing image"
+        value={seo.ogImageId ? [seo.ogImageId] : []}
+        media={media}
+        onUploaded={onUploaded}
+        onChange={(ids) => onChange({ ...seo, ogImageId: ids[0] })}
+        hint="Optional image displayed when the page is shared on social networks."
+      />
       <Field
         label="SEO description"
         value={seo.description || ""}
