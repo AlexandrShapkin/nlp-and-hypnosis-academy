@@ -13,6 +13,7 @@ export function publicMetadata(
   const image = media.find(
     (m) => m.id === (seo.ogImageId || settings.seo.ogImageId),
   );
+  const favicon = media.find((m) => m.id === settings.faviconImageId);
   const index = allowIndexing() && !seo.noindex && !settings.seo.noindex;
   const resolvedTitle =
     seo.title ||
@@ -28,6 +29,7 @@ export function publicMetadata(
   return {
     title: resolvedTitle,
     description: resolvedDescription,
+    ...(favicon ? { icons: { icon: [{ url: favicon.url, type: "image/webp" }] } } : {}),
     alternates: { canonical },
     robots: { index, follow: index },
     openGraph: {
