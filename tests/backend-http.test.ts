@@ -298,6 +298,137 @@ describe("HTTP authorization, validation and consent", () => {
       ).status,
     ).toBe(422);
   });
+  it("allows only the owner to invite, recover and revoke maintainer access", async () => {
+    const ownerToken = cookieToken;
+    expect(ownerToken).toBeTruthy();
+    const initial = await admin("team", "GET");
+    expect(initial.status).toBe(200);
+    expect((await initial.json()).data.members).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          email: "http-owner@example.test",
+          role: "owner",
+        }),
+      ]),
+    );
+    const invitation = await admin("team/invite", "POST", {
+      email: "Teammate@example.test",
+    });
+    expect(invitation.status).toBe(201);
+    const invite = (await invitation.json()).data;
+    expect(invite.token).toMatch(/^[0-9a-f]{64}$/);
+    expect((await admin("team", "GET").then((r) => r.json())).data).not.toHaveProperty(
+      "token",
+    );
+    const { sqlite } = await import("../src/db");
+    const persisted = sqlite
+      .prepare("SELECT token_hash FROM maintainer_invitations WHERE id=?")
+      .get(invite.id) as { token_hash: string };
+    expect(persisted.token_hash).not.toBe(invite.token);
+    expect(
+      (await admin("team/invite", "POST", { email: "Teammate@example.test" }))
+        .status,
+    ).toBe(201);
+    // Reissuing an invitation makes the first link unusable.
+    expect(
+      (
+        await admin("auth/accept-invite", "POST", {
+          token: invite.token,
+          password: "a-strong-password-123",
+        })
+      ).status,
+    ).toBe(422);
+    const freshList = (await (await admin("team", "GET")).json()).data;
+    const activeInvitation = freshList.invitations.find(
+      (invitation: { email: string }) => invitation.email === "teammate@example.test",
+    );
+    expect(activeInvitation).toBeDefined();
+    // The fresh token is only returned to the owner on creation.
+    const newer = await admin("team/invite", "POST", {
+      email: "Teammate@example.test",
+    });
+    const token = (await newer.json()).data.token;
+    expect(
+      (await admin("auth/accept-invite", "POST", {
+        token,
+        password: "a-strong-password-123",
+      })).status,
+    ).toBe(201);
+    expect(
+      (await admin("auth/accept-invite", "POST", {
+        token,
+        password: "a-strong-password-123",
+      })).status,
+    ).toBe(422);
+    const member = (await (await admin("team", "GET")).json()).data.members.find(
+      (value: { email: string }) => value.email === "teammate@example.test",
+    );
+    expect(member.role).toBe("maintainer");
+    const login = await admin("auth/login", "POST", {
+      email: "teammate@example.test",
+      password: "a-strong-password-123",
+    });
+    expect(login.status).toBe(200);
+    const memberToken = (login.headers.get("set-cookie") || "").match(
+      /academy_session=([^;]+)/,
+    )?.[1];
+    expect(memberToken).toBeTruthy();
+    cookieToken = memberToken;
+    expect((await admin("cards", "GET")).status).toBe(200);
+    expect((await admin("team", "GET")).status).toBe(403);
+    expect((await admin("team/invite", "POST", { email: "intruder@example.test" })).status).toBe(403);
+    cookieToken = ownerToken;
+    const self = (await (await admin("team", "GET")).json()).data.members.find(
+      (value: { role: string }) => value.role === "owner",
+    );
+    expect((await admin("team/" + self.id, "PATCH", { active: false })).status).toBe(403);
+    expect((await admin("team/" + member.id, "PATCH", { active: false })).status).toBe(200);
+    const auth = await import("../src/server/auth");
+    expect(auth.sessionFromToken(memberToken)).toBeNull();
+    expect(
+      (await admin("auth/login", "POST", {
+        email: "teammate@example.test",
+        password: "a-strong-password-123",
+      })).status,
+    ).toBe(401);
+    expect((await admin("team/" + member.id, "PATCH", { active: true })).status).toBe(200);
+    const recovery = await admin("team/reset/" + member.id, "POST", {});
+    expect(recovery.status).toBe(201);
+    const recoveryToken = (await recovery.json()).data.token;
+    expect(
+      (await admin("auth/accept-invite", "POST", {
+        token: recoveryToken,
+        password: "different-strong-password-456",
+      })).status,
+    ).toBe(201);
+    expect(
+      (await admin("auth/login", "POST", {
+        email: "teammate@example.test",
+        password: "a-strong-password-123",
+      })).status,
+    ).toBe(401);
+    expect(
+      (await admin("auth/login", "POST", {
+        email: "teammate@example.test",
+        password: "different-strong-password-456",
+      })).status,
+    ).toBe(200);
+    const unused = await admin("team/invite", "POST", {
+      email: "unused@example.test",
+    });
+    const unusedInvite = (await unused.json()).data;
+    expect(
+      (await admin("team/invitations/" + unusedInvite.id, "DELETE")).status,
+    ).toBe(200);
+    expect(
+      (await admin("auth/accept-invite", "POST", {
+        token: unusedInvite.token,
+        password: "a-strong-password-123",
+      })).status,
+    ).toBe(422);
+    cookieToken = ownerToken;
+  });
+
   it("logout revokes the persisted token", async () => {
     const auth = await import("../src/server/auth");
     expect(auth.sessionFromToken(cookieToken)).toBeTruthy();
